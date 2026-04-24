@@ -19,6 +19,24 @@ Use this workflow when refreshing an existing recovery case. The goal is to vali
 6. Keep public-mode safety: do not add private victim communications, sealed legal process, API keys, or sensitive unreleased attribution.
 7. Prefer source-specific updates over broad rewrites. A one-line timeline delta is better than a rewritten case narrative when only one fact changed.
 
+## Material Delta Gate
+
+Do not edit or commit the case when the only observed change is volatile background activity on a high-volume service-like address. Examples of non-material changes:
+
+- Transaction count changed on a service-like BTC cluster.
+- Lifetime funded volume changed on a service-like BTC cluster.
+- Crawler-derived cluster size changed without a new stolen-tail link.
+- Explorer formatting, labels, or rendering changed without a factual case delta.
+
+Commit only when the change can affect recovery work:
+
+- A tracked stolen-tail address moves funds or receives a meaningful new transaction.
+- A tracked balance, blacklist, freeze, venue, bridge, or custody status changes.
+- A new destination, landing address, deposit venue, or recovery contact target is confirmed.
+- Attribution confidence changes because a source, label, or direct linkage changed.
+- A current claim is disproven or becomes stale enough to lower confidence.
+- A priority action, branch score, timeline event, or source list must change because of the new fact.
+
 ## Procedure
 
 1. Load the registry entry for the case id and open the referenced data file.

@@ -103,6 +103,8 @@ Use `docs/CASE_REFRESH_WORKFLOW.md` for case refreshes. A refresh validates the 
 6. Open the static page locally and verify the top blocks, table, and charts render.
 7. Commit and push to GitHub Pages.
 
+Material-delta gate: do not commit if the only observed change is a volatile aggregate counter on a high-volume service-like address, such as transaction count, lifetime funded volume, or crawler-derived cluster size. Commit only when the change affects recovery actionability: stolen-tail movement, balance/state change on a tracked branch, blacklist/freeze/venue status, stronger or weaker attribution, new landing address, disproven claim, score/action change, or a new source needed for the case.
+
 ## Data Safety
 
 This MVP is meant for public or redacted case presentation. Do not put private victim communications, sealed legal process, API keys, or sensitive unreleased attribution into `data/*.js`.
