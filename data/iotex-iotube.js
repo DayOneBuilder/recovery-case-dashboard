@@ -236,7 +236,7 @@ window.RECOVERY_CASE = {
         { name: "THORChain router", category: 1, size: 42, status: "tracing", classification: "confirmed-stolen-path", tooltip: "17 direct depositWithExpiry transactions" },
         { name: "BTC landing addresses", label: "4 BTC landings", category: 1, size: 48, status: "live", classification: "confirmed-stolen-path", tooltip: "22.863073 BTC remains" },
         { name: "1EGcRh", category: 1, size: 34, status: "tracing", classification: "confirmed-stolen-path", tooltip: "2.879058 BTC linked input; full balance is mixed-use" },
-        { name: "bc1q7t4v", category: 2, size: 46, status: "service", classification: "investigative-lead", tooltip: "313,699 txs; 599,484+ BTC lifetime funded volume" },
+        { name: "bc1q7t4v", category: 2, size: 46, status: "service", classification: "investigative-lead", tooltip: "313,801 txs; 599,707+ BTC lifetime funded volume" },
         { name: "Other BTC peels", category: 2, size: 30, status: "unknown", classification: "investigative-lead", tooltip: "Unresolved spent BTC branches" },
         { name: "0xA467 CIOTX", label: "0xA467", category: 1, size: 40, status: "constrained", classification: "confirmed-stolen-path", tooltip: "76,448,785 CIOTX visible" },
         { name: "Binance / partners", category: 3, size: 34, status: "offchain", classification: "confirmed-stolen-path", tooltip: "52.4M CIOTX branch per IoTeX update" },
@@ -300,7 +300,7 @@ window.RECOVERY_CASE = {
       details: [
         { label: "Address", value: "bc1q7t4vyehjsexdme84qhdgd4dawcn54djh0m78fz" },
         { label: "Touch amount", value: "0.75 BTC from bc1qpn94... branch" },
-        { label: "Cluster size", value: "313,699 txs, 599,484+ BTC lifetime funded volume" },
+        { label: "Cluster size", value: "313,801 txs, 599,707+ BTC lifetime funded volume" },
         { label: "Claim boundary", value: "Investigative lead only; not publicly labeled to a named exchange." }
       ],
       evidenceRefs: ["btc-service-cluster", "btc-service-touch-tx"]
