@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0",
+  "defaultCaseId": "iotex-iotube",
+  "cases": [
+    {
+      "id": "iotex-iotube",
+      "title": "IoTeX ioTube",
+      "dataFile": "data/iotex-iotube.js",
+      "refreshWorkflow": "docs/CASE_REFRESH_WORKFLOW.md",
+      "cronJobName": "Recovery case refresh: iotex-iotube"
+    }
+  ]
+}

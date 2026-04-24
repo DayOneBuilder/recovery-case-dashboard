@@ -1,0 +1,198 @@
+#!/usr/bin/env python3
+"""Queue an OpenClaw cron refresh for a configured recovery case."""
+
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+from json import JSONDecodeError
+from pathlib import Path
+from typing import Any
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+REGISTRY_PATH = REPO_ROOT / "config" / "cases.json"
+FALLBACK_DEFAULT_CASE_ID = "iotex-iotube"
+
+
+def fail(message: str, exit_code: int = 1) -> None:
+    print(f"case-refresh: {message}", file=sys.stderr)
+    raise SystemExit(exit_code)
+
+
+def usage() -> str:
+    return (
+        "Usage: scripts/case-refresh [case-id]\n"
+        "       scripts/case-refresh --list\n"
+        "\n"
+        f"Default case id: {FALLBACK_DEFAULT_CASE_ID}"
+    )
+
+
+def load_registry() -> tuple[str, dict[str, dict[str, Any]]]:
+    try:
+        registry = json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        fail(f"missing registry file: {REGISTRY_PATH.relative_to(REPO_ROOT)}")
+    except JSONDecodeError as exc:
+        fail(f"invalid registry JSON at {REGISTRY_PATH.relative_to(REPO_ROOT)}: {exc}")
+
+    raw_cases = registry.get("cases")
+    if not isinstance(raw_cases, list):
+        fail("registry field 'cases' must be a list")
+
+    cases: dict[str, dict[str, Any]] = {}
+    for raw_case in raw_cases:
+        if not isinstance(raw_case, dict):
+            fail("registry case entries must be objects")
+
+        case_id = raw_case.get("id")
+        cron_job_name = raw_case.get("cronJobName")
+        if not isinstance(case_id, str) or not case_id:
+            fail("registry case entry is missing string field 'id'")
+        if not isinstance(cron_job_name, str) or not cron_job_name:
+            fail(f"registry case '{case_id}' is missing string field 'cronJobName'")
+        if case_id in cases:
+            fail(f"duplicate case id in registry: {case_id}")
+
+        cases[case_id] = raw_case
+
+    default_case_id = registry.get("defaultCaseId", FALLBACK_DEFAULT_CASE_ID)
+    if not isinstance(default_case_id, str) or not default_case_id:
+        fail("registry field 'defaultCaseId' must be a non-empty string")
+
+    return default_case_id, cases
+
+
+def print_cases(cases: dict[str, dict[str, Any]]) -> None:
+    print("Configured cases:")
+    for case_id in sorted(cases):
+        case = cases[case_id]
+        title = case.get("title", case_id)
+        print(f"- {case_id}: {title} -> {case['cronJobName']}")
+
+
+def extract_json_payload(text: str) -> Any:
+    decoder = json.JSONDecoder()
+    fallback: Any = None
+
+    for index, char in enumerate(text):
+        if char not in "[{":
+            continue
+        try:
+            payload, _ = decoder.raw_decode(text[index:])
+        except JSONDecodeError:
+            continue
+
+        if isinstance(payload, dict) and "jobs" in payload:
+            return payload
+        if isinstance(payload, list):
+            return {"jobs": payload}
+        if fallback is None:
+            fallback = payload
+
+    if fallback is not None:
+        return fallback
+    fail("could not find a JSON payload in OpenClaw stdout")
+
+
+def run_command(command: list[str]) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(command, capture_output=True, text=True, check=False)
+    except FileNotFoundError:
+        fail(f"command not found: {command[0]}")
+
+
+def list_openclaw_crons() -> list[dict[str, Any]]:
+    result = run_command(["openclaw", "cron", "list", "--json"])
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip() or "no output"
+        fail(f"'openclaw cron list --json' failed with exit {result.returncode}: {detail}")
+
+    payload = extract_json_payload(result.stdout)
+    jobs = payload.get("jobs") if isinstance(payload, dict) else None
+    if not isinstance(jobs, list):
+        fail("OpenClaw JSON did not contain a 'jobs' list")
+
+    normalized_jobs: list[dict[str, Any]] = []
+    for job in jobs:
+        if isinstance(job, dict):
+            normalized_jobs.append(job)
+    return normalized_jobs
+
+
+def find_cron_job(jobs: list[dict[str, Any]], cron_job_name: str) -> dict[str, Any] | None:
+    for job in jobs:
+        if job.get("name") == cron_job_name:
+            return job
+    return None
+
+
+def available_job_names(jobs: list[dict[str, Any]]) -> str:
+    names = sorted(job["name"] for job in jobs if isinstance(job.get("name"), str))
+    if not names:
+        return "none"
+    return ", ".join(names[:12]) + (" ..." if len(names) > 12 else "")
+
+
+def enqueue_cron_run(job_id: str) -> None:
+    result = run_command(["openclaw", "cron", "run", job_id])
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip() or "no output"
+        fail(f"'openclaw cron run {job_id}' failed with exit {result.returncode}: {detail}")
+
+
+def parse_args(argv: list[str]) -> tuple[bool, str | None]:
+    if len(argv) > 2:
+        fail(f"too many arguments\n{usage()}", exit_code=2)
+
+    if argv and argv[0] in {"-h", "--help"}:
+        print(usage())
+        raise SystemExit(0)
+    if argv and argv[0] == "--list":
+        if len(argv) > 1:
+            fail("--list does not accept a case id", exit_code=2)
+        return True, None
+    if argv and argv[0].startswith("-"):
+        fail(f"unknown option: {argv[0]}\n{usage()}", exit_code=2)
+
+    return False, argv[0] if argv else None
+
+
+def main(argv: list[str]) -> int:
+    should_list, requested_case_id = parse_args(argv)
+    default_case_id, cases = load_registry()
+
+    if should_list:
+        print_cases(cases)
+        return 0
+
+    case_id = requested_case_id or default_case_id
+    case = cases.get(case_id)
+    if case is None:
+        known = ", ".join(sorted(cases)) or "none"
+        fail(f"unknown case id '{case_id}'. Known cases: {known}")
+
+    cron_job_name = case["cronJobName"]
+    jobs = list_openclaw_crons()
+    job = find_cron_job(jobs, cron_job_name)
+    if job is None:
+        fail(
+            f"cron job '{cron_job_name}' for case '{case_id}' was not found. "
+            f"Available jobs: {available_job_names(jobs)}"
+        )
+
+    job_id = job.get("id")
+    if not isinstance(job_id, str) or not job_id:
+        fail(f"cron job '{cron_job_name}' is missing an id")
+
+    enqueue_cron_run(job_id)
+    print(f"Queued refresh for case '{case_id}'.")
+    print(f"Cron job: {cron_job_name}")
+    print(f"Job id: {job_id}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))

@@ -99,3 +99,13 @@ Decision: use IoTeX ioTube for the first dashboard.
 Reasoning: it exercises the main visual model: reserve drain, bridge, BTC landing set, visible tail, spent peel branch, service-like cluster, CIOTX tail, and off-chain exchange branch.
 
 Tradeoff: Stellar-specific and stablecoin-freeze workflows are not represented yet. Those can be added with `YieldBlox` and `FoomCash` once the case schema is stable.
+
+## 11. Refresh Cases Incrementally
+
+Decision: refresh existing cases by validating the checked-in current state and applying only concrete deltas.
+
+Reasoning: recovery stakeholders need continuity and clean diffs. A full re-research pass risks rewriting stable claims, blurring claim boundaries, and making it harder to see what actually changed since the last review.
+
+Tradeoff: analysts must be disciplined about checking the existing source trail and recording unchanged validations separately from data edits.
+
+Implementation: `config/cases.json` maps dashboard case ids to OpenClaw cron job names, and `scripts/case-refresh` queues the matching external cron job. The static site remains static; the operator command only starts the refresh workflow.

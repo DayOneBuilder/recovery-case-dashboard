@@ -1,0 +1,54 @@
+# Recovery Case Refresh Workflow
+
+Use this workflow when refreshing an existing recovery case. The goal is to validate the current known state and add only deltas when something changed. Do not perform a full re-research pass unless the case data is missing, internally inconsistent, or explicitly marked for rebuild.
+
+## Inputs
+
+- Case id from `config/cases.json`.
+- Current case data file, for example `data/iotex-iotube.js`.
+- Existing dashboard facts: stolen assets, fund locations, classifications, priority actions, workstreams, timeline, notes, and sources.
+- Current public sources and explorer views needed to validate the existing claims.
+
+## Refresh Rules
+
+1. Treat the checked-in case data as the baseline, not as a draft to rewrite.
+2. Validate each current material claim against its cited source or current explorer state.
+3. Add or edit data only when there is a concrete delta: new movement, changed balance, changed venue/freeze state, stronger attribution, disproven lead, new source, or changed next action.
+4. Leave stable wording, chart structure, and UI-facing labels unchanged when the underlying fact did not change.
+5. Preserve the distinction between `confirmed-stolen-path`, `investigative-lead`, and `context`. Do not promote a lead without direct supporting evidence.
+6. Keep public-mode safety: do not add private victim communications, sealed legal process, API keys, or sensitive unreleased attribution.
+7. Prefer source-specific updates over broad rewrites. A one-line timeline delta is better than a rewritten case narrative when only one fact changed.
+
+## Procedure
+
+1. Load the registry entry for the case id and open the referenced data file.
+2. Build a short baseline from the existing case:
+   - `case.lastReview` and `case.nextReview`.
+   - Top summary values.
+   - Each `fundLocations` row.
+   - Priority actions and workstream next actions.
+   - Flow/evidence graph claims that depend on balances, services, or venue labels.
+   - Timeline items and source references.
+3. Re-check only the sources needed to validate those baseline claims.
+4. Classify the result for each claim:
+   - `unchanged`: no data edit, but it may be mentioned in the refresh note.
+   - `changed`: update the relevant case fields and source refs.
+   - `new-delta`: add a focused timeline/source/action entry.
+   - `stale-or-unverified`: lower confidence, add a caveat, or create a next action.
+   - `disproven`: correct the claim and preserve a short explanation in notes or timeline.
+5. Update the data file only for changed facts and their dependent summaries.
+6. Set `case.lastReview` to the refresh date. Adjust `case.nextReview` only if the review cadence changed.
+7. Verify the static page renders after the data update.
+8. Produce a concise refresh summary with:
+   - Case id and review date.
+   - Sources checked.
+   - Deltas applied.
+   - Claims validated with no data change.
+   - Any blocked checks or follow-up actions.
+
+## Non-Goals
+
+- Do not rebuild the case from scratch.
+- Do not add a backend, package manager, build step, or live crawler.
+- Do not touch unrelated UI files for a data-only refresh.
+- Do not infer exchange, mixer, or owner identity from a service-like pattern alone.

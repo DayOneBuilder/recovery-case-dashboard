@@ -52,10 +52,15 @@ Use `classification: "confirmed-stolen-path"` only when the path is supported as
 ├── assets/
 │   ├── app.js
 │   └── styles.css
+├── config/
+│   └── cases.json
 ├── data/
 │   └── iotex-iotube.js
-└── docs/
-    └── DECISIONS.md
+├── docs/
+│   ├── CASE_REFRESH_WORKFLOW.md
+│   └── DECISIONS.md
+└── scripts/
+    └── case-refresh
 ```
 
 ## Local Preview
@@ -70,14 +75,31 @@ Then open:
 http://localhost:4173/
 ```
 
-## Manual Update Flow
+## Case Refresh Command
 
-1. Re-run analysis for the case.
-2. Update `data/iotex-iotube.js`.
-3. Keep `fundLocations`, `priorityActions`, `workstreams`, and chart classifications in sync.
-4. Update any source case notes outside this repo if needed.
-5. Open the static page locally and verify the top blocks, table, and charts render.
-6. Commit and push to GitHub Pages.
+`scripts/case-refresh` queues the configured OpenClaw cron job for an incremental case refresh. It defaults to `iotex-iotube`.
+
+```bash
+scripts/case-refresh
+scripts/case-refresh iotex-iotube
+scripts/case-refresh --list
+```
+
+The command reads `config/cases.json`, looks up the case id, finds the matching cron job by exact name from `openclaw cron list --json`, and enqueues it with `openclaw cron run <job-id>`. It prints a concise success message and fails clearly if the case id is unknown or the cron job is not present in OpenClaw.
+
+The local registry maps case ids to their case data file, refresh workflow, and OpenClaw cron job name. Update `config/cases.json` when adding a new dashboard case or renaming an external cron job.
+
+## Validation-Only Refresh Flow
+
+Use `docs/CASE_REFRESH_WORKFLOW.md` for case refreshes. A refresh validates the current checked-in case state and adds only deltas when something changed. It is not a full re-research pass.
+
+1. Treat `data/iotex-iotube.js` as the baseline.
+2. Validate current material claims against the relevant current source or explorer state.
+3. Update only changed balances, statuses, source refs, timeline events, priority actions, or dependent summaries.
+4. Keep `fundLocations`, `priorityActions`, `workstreams`, and chart classifications in sync when a changed fact affects more than one section.
+5. Preserve confirmed-path versus investigative-lead boundaries.
+6. Open the static page locally and verify the top blocks, table, and charts render.
+7. Commit and push to GitHub Pages.
 
 ## Data Safety
 
