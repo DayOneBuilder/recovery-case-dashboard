@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from datetime import datetime, timezone
 from json import JSONDecodeError
 from pathlib import Path
 from typing import Any
@@ -15,6 +16,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 REGISTRY_PATH = REPO_ROOT / "config" / "cases.json"
 FALLBACK_DEFAULT_CASE_ID = "iotex-iotube"
 DEFAULT_AGENT_TIMEOUT_SECONDS = 1200
+FALLBACK_LOG_DIR = Path("/tmp/case-refresh")
 
 
 def fail(message: str, exit_code: int = 1) -> None:
@@ -196,18 +198,31 @@ def build_refresh_prompt(case_id: str, case: dict[str, Any]) -> str:
     )
 
 
-def run_direct_agent_refresh(case_id: str, case: dict[str, Any]) -> subprocess.CompletedProcess[str]:
+def launch_direct_agent_refresh(case_id: str, case: dict[str, Any]) -> tuple[subprocess.Popen[str], Path]:
     prompt = build_refresh_prompt(case_id, case)
-    return run_command([
-        "openclaw",
-        "agent",
-        "--agent",
-        "main",
-        "--message",
-        prompt,
-        "--timeout",
-        str(DEFAULT_AGENT_TIMEOUT_SECONDS)
-    ])
+    FALLBACK_LOG_DIR.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    log_path = FALLBACK_LOG_DIR / f"{case_id}-{timestamp}.log"
+
+    with log_path.open("w", encoding="utf-8") as log_file:
+        process = subprocess.Popen(
+            [
+                "openclaw",
+                "agent",
+                "--agent",
+                "main",
+                "--message",
+                prompt,
+                "--timeout",
+                str(DEFAULT_AGENT_TIMEOUT_SECONDS)
+            ],
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+            text=True,
+            start_new_session=True
+        )
+
+    return process, log_path
 
 
 def parse_args(argv: list[str]) -> tuple[bool, str | None]:
@@ -266,23 +281,18 @@ def main(argv: list[str]) -> int:
             f"Available jobs: {available_job_names(jobs)}"
         )
 
-    agent_result = run_direct_agent_refresh(case_id, case)
-    if agent_result.returncode != 0:
-        fail(
-            f"{cron_error}\n"
-            f"direct agent fallback failed with exit {agent_result.returncode}: {summarize_failure(agent_result)}"
-        )
+    try:
+        process, log_path = launch_direct_agent_refresh(case_id, case)
+    except OSError as exc:
+        fail(f"{cron_error}\ndirect agent fallback could not be started: {exc}")
 
     print(f"Triggered refresh for case '{case_id}'.")
     print("Mode: direct-agent-fallback")
     print("Result delivery: configured Slack thread via message tool")
+    print(f"Background pid: {process.pid}")
+    print(f"Log: {log_path}")
     if cron_error:
         print(f"Note: {cron_error}")
-
-    agent_output = agent_result.stdout.strip()
-    if agent_output and agent_output != "NO_REPLY":
-        print("Agent output:")
-        print(agent_output)
 
     return 0
 
