@@ -23,7 +23,29 @@
       </header>
 
       <main>
-        <section class="score-strip" id="score-strip" aria-label="Case metrics"></section>
+        <section class="exploit-brief" id="exploit-brief" aria-label="Exploit and theft summary"></section>
+
+        <section class="summary-strip" id="top-summary" aria-label="Top recovery summary"></section>
+
+        <section class="panel actions-panel" aria-label="Priority actions now">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Priority actions now</p>
+              <h2>Do these before the case goes stale</h2>
+            </div>
+          </div>
+          <div id="priority-actions" class="action-list"></div>
+        </section>
+
+        <section class="panel funds-panel" aria-label="Where funds are now">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Where funds are now</p>
+              <h2>Confirmed balances, venue dependencies, and leads</h2>
+            </div>
+          </div>
+          <div id="funds-now" class="funds-now"></div>
+        </section>
 
         <section class="main-grid">
           <article class="panel panel-flow">
@@ -40,10 +62,13 @@
           <aside class="panel branch-panel">
             <div class="panel-heading compact">
               <div>
-                <p class="eyebrow">Selected lead</p>
+                <p class="eyebrow">Selected workstream</p>
                 <h2 id="branch-title">-</h2>
               </div>
-              <span id="branch-status" class="status-pill">-</span>
+              <div class="pill-row">
+                <span id="branch-classification" class="class-pill">-</span>
+                <span id="branch-status" class="status-pill">-</span>
+              </div>
             </div>
             <p id="branch-summary" class="branch-summary"></p>
             <div class="score-stack" id="branch-scores"></div>
