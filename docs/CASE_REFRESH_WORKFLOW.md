@@ -64,6 +64,10 @@ Commit only when the change can affect recovery work:
    - Claims validated with no data change.
    - Any blocked checks or follow-up actions.
 
+## Delivery
+
+For scheduled OpenClaw isolated cron jobs, return the refresh summary as plain text and let the cron runner deliver it via `announce`. Do not call Slack or the generic message tool from inside the scheduled cron agent turn. Direct Slack sending is only for the manual fallback path in `scripts/case-refresh`, and that path must use a minimal message call without blocks or interactive fields.
+
 ## Non-Goals
 
 - Do not rebuild the case from scratch.

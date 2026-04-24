@@ -91,6 +91,8 @@ If manual `openclaw cron run <job-id>` works in the current OpenClaw build, the 
 
 The local registry maps case ids to their case data file, refresh workflow, OpenClaw cron job name, and thread-delivery settings. Update `config/cases.json` when adding a new dashboard case, renaming an external cron job, or changing the target thread.
 
+Scheduled OpenClaw cron delivery is runner-owned: the isolated cron agent must return a plain-text summary, and the cron job should use `announce` delivery. The manual fallback is the only path that asks the agent to call Slack directly.
+
 ## Validation-Only Refresh Flow
 
 Use `docs/CASE_REFRESH_WORKFLOW.md` for case refreshes. A refresh validates the current checked-in case state and adds only deltas when something changed. It is not a full re-research pass.
