@@ -85,9 +85,11 @@ scripts/case-refresh iotex-iotube
 scripts/case-refresh --list
 ```
 
-The command reads `config/cases.json`, looks up the case id, finds the matching cron job by exact name from `openclaw cron list --json`, and enqueues it with `openclaw cron run <job-id>`. It prints a concise success message and fails clearly if the case id is unknown or the cron job is not present in OpenClaw.
+The command reads `config/cases.json`, looks up the case id, and tries to queue the matching cron job by exact name from `openclaw cron list --json`.
 
-The local registry maps case ids to their case data file, refresh workflow, and OpenClaw cron job name. Update `config/cases.json` when adding a new dashboard case or renaming an external cron job.
+If manual `openclaw cron run <job-id>` works in the current OpenClaw build, the refresh is enqueued onto that scheduled job. If manual cron triggering is unavailable, the command falls back to a direct `openclaw agent` run using the same validation-only workflow and still posts the result into the configured Slack thread.
+
+The local registry maps case ids to their case data file, refresh workflow, OpenClaw cron job name, and thread-delivery settings. Update `config/cases.json` when adding a new dashboard case, renaming an external cron job, or changing the target thread.
 
 ## Validation-Only Refresh Flow
 

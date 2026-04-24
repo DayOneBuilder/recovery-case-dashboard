@@ -14,6 +14,7 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[1]
 REGISTRY_PATH = REPO_ROOT / "config" / "cases.json"
 FALLBACK_DEFAULT_CASE_ID = "iotex-iotube"
+DEFAULT_AGENT_TIMEOUT_SECONDS = 1200
 
 
 def fail(message: str, exit_code: int = 1) -> None:
@@ -73,6 +74,22 @@ def print_cases(cases: dict[str, dict[str, Any]]) -> None:
         print(f"- {case_id}: {title} -> {case['cronJobName']}")
 
 
+def require_case_string(case_id: str, case: dict[str, Any], field: str) -> str:
+    value = case.get(field)
+    if not isinstance(value, str) or not value.strip():
+        fail(f"registry case '{case_id}' is missing string field '{field}'")
+    return value.strip()
+
+
+def resolve_repo_path(case_id: str, relative_path: str, field: str) -> Path:
+    path = (REPO_ROOT / relative_path).resolve()
+    try:
+        path.relative_to(REPO_ROOT)
+    except ValueError:
+        fail(f"registry case '{case_id}' field '{field}' points outside the repo: {relative_path}")
+    return path
+
+
 def extract_json_payload(text: str) -> Any:
     decoder = json.JSONDecoder()
     fallback: Any = None
@@ -102,6 +119,10 @@ def run_command(command: list[str]) -> subprocess.CompletedProcess[str]:
         return subprocess.run(command, capture_output=True, text=True, check=False)
     except FileNotFoundError:
         fail(f"command not found: {command[0]}")
+
+
+def summarize_failure(result: subprocess.CompletedProcess[str]) -> str:
+    return result.stderr.strip() or result.stdout.strip() or "no output"
 
 
 def list_openclaw_crons() -> list[dict[str, Any]]:
@@ -136,11 +157,57 @@ def available_job_names(jobs: list[dict[str, Any]]) -> str:
     return ", ".join(names[:12]) + (" ..." if len(names) > 12 else "")
 
 
-def enqueue_cron_run(job_id: str) -> None:
-    result = run_command(["openclaw", "cron", "run", job_id])
-    if result.returncode != 0:
-        detail = result.stderr.strip() or result.stdout.strip() or "no output"
-        fail(f"'openclaw cron run {job_id}' failed with exit {result.returncode}: {detail}")
+def enqueue_cron_run(job_id: str) -> subprocess.CompletedProcess[str]:
+    return run_command(["openclaw", "cron", "run", job_id])
+
+
+def build_refresh_prompt(case_id: str, case: dict[str, Any]) -> str:
+    data_file_raw = require_case_string(case_id, case, "dataFile")
+    workflow_raw = require_case_string(case_id, case, "refreshWorkflow")
+    notify_channel = require_case_string(case_id, case, "notifyChannel")
+    notify_target = require_case_string(case_id, case, "notifyTarget")
+    notify_thread_id = require_case_string(case_id, case, "notifyThreadId")
+
+    data_file = resolve_repo_path(case_id, data_file_raw, "dataFile")
+    workflow_file = resolve_repo_path(case_id, workflow_raw, "refreshWorkflow")
+    readme_file = REPO_ROOT / "README.md"
+
+    return (
+        f"Incremental refresh for recovery case `{case_id}`.\n\n"
+        f"Repo: {REPO_ROOT}\n"
+        f"Primary data file: {data_file}\n"
+        f"Workflow file: {workflow_file}\n"
+        f"README: {readme_file}\n\n"
+        "This is NOT a fresh research task. Validate the CURRENT known public state and add only material deltas.\n\n"
+        "Rules:\n"
+        "- Read the workflow file first, then README and the case data file.\n"
+        "- Check only the already-known branches, addresses, venues, balances, dates, actions, classifications, and source-backed claims already present in the case.\n"
+        "- Do not widen scope unless a targeted check shows a confirmed material change.\n"
+        "- If nothing material changed, do not edit files and do not create a commit.\n"
+        "- If material changes are confirmed, update only the necessary parts of the case file and keep the existing schema and public-claim boundaries intact.\n"
+        "- After edits, run a lightweight sanity check so the case JS still parses and exposes window.RECOVERY_CASE.\n"
+        f"- If repo files changed, run git status, commit with: Refresh case state: {case_id}, then git push origin main.\n"
+        f"- Then send a concise update yourself via the message tool to channel={notify_channel}, target={notify_target}, threadId={notify_thread_id}.\n"
+        "- Slack update format:\n"
+        f"  1) first line exactly one of: Проверил {case_id}, изменений нет. OR Обновил {case_id}.\n"
+        "  2) then 2-5 short bullets with the exact deltas or exact re-validation points\n"
+        "  3) if a commit was created, include the short hash in the message\n"
+        "- After sending the Slack message, return exactly NO_REPLY."
+    )
+
+
+def run_direct_agent_refresh(case_id: str, case: dict[str, Any]) -> subprocess.CompletedProcess[str]:
+    prompt = build_refresh_prompt(case_id, case)
+    return run_command([
+        "openclaw",
+        "agent",
+        "--agent",
+        "main",
+        "--message",
+        prompt,
+        "--timeout",
+        str(DEFAULT_AGENT_TIMEOUT_SECONDS)
+    ])
 
 
 def parse_args(argv: list[str]) -> tuple[bool, str | None]:
@@ -174,23 +241,49 @@ def main(argv: list[str]) -> int:
         known = ", ".join(sorted(cases)) or "none"
         fail(f"unknown case id '{case_id}'. Known cases: {known}")
 
-    cron_job_name = case["cronJobName"]
+    cron_job_name = require_case_string(case_id, case, "cronJobName")
     jobs = list_openclaw_crons()
     job = find_cron_job(jobs, cron_job_name)
-    if job is None:
-        fail(
-            f"cron job '{cron_job_name}' for case '{case_id}' was not found. "
+
+    cron_error: str | None = None
+    if job is not None:
+        job_id = job.get("id")
+        if not isinstance(job_id, str) or not job_id:
+            fail(f"cron job '{cron_job_name}' is missing an id")
+
+        cron_result = enqueue_cron_run(job_id)
+        if cron_result.returncode == 0:
+            print(f"Queued refresh for case '{case_id}'.")
+            print(f"Mode: cron")
+            print(f"Cron job: {cron_job_name}")
+            print(f"Job id: {job_id}")
+            return 0
+
+        cron_error = f"manual cron trigger failed: {summarize_failure(cron_result)}"
+    else:
+        cron_error = (
+            f"cron job '{cron_job_name}' was not found. "
             f"Available jobs: {available_job_names(jobs)}"
         )
 
-    job_id = job.get("id")
-    if not isinstance(job_id, str) or not job_id:
-        fail(f"cron job '{cron_job_name}' is missing an id")
+    agent_result = run_direct_agent_refresh(case_id, case)
+    if agent_result.returncode != 0:
+        fail(
+            f"{cron_error}\n"
+            f"direct agent fallback failed with exit {agent_result.returncode}: {summarize_failure(agent_result)}"
+        )
 
-    enqueue_cron_run(job_id)
-    print(f"Queued refresh for case '{case_id}'.")
-    print(f"Cron job: {cron_job_name}")
-    print(f"Job id: {job_id}")
+    print(f"Triggered refresh for case '{case_id}'.")
+    print("Mode: direct-agent-fallback")
+    print("Result delivery: configured Slack thread via message tool")
+    if cron_error:
+        print(f"Note: {cron_error}")
+
+    agent_output = agent_result.stdout.strip()
+    if agent_output and agent_output != "NO_REPLY":
+        print("Agent output:")
+        print(agent_output)
+
     return 0
 
 

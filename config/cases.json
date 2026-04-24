@@ -7,7 +7,10 @@
       "title": "IoTeX ioTube",
       "dataFile": "data/iotex-iotube.js",
       "refreshWorkflow": "docs/CASE_REFRESH_WORKFLOW.md",
-      "cronJobName": "Recovery case refresh: iotex-iotube"
+      "cronJobName": "Recovery case refresh: iotex-iotube",
+      "notifyChannel": "slack",
+      "notifyTarget": "C0AKB50Q12P",
+      "notifyThreadId": "1777022743.951349"
     }
   ]
 }
