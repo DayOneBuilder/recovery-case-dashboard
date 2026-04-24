@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Recovery Case Dashboard</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+    <link rel="stylesheet" href="./assets/styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <header class="case-header">
+        <div>
+          <p class="eyebrow">Manual recovery case board</p>
+          <h1 id="case-title">Loading case...</h1>
+          <p id="case-subtitle" class="subtitle"></p>
+        </div>
+        <div class="review-box">
+          <span>Last review</span>
+          <strong id="last-review">-</strong>
+          <small id="next-review">Next review: -</small>
+        </div>
+      </header>
+
+      <main>
+        <section class="score-strip" id="score-strip" aria-label="Case metrics"></section>
+
+        <section class="main-grid">
+          <article class="panel panel-flow">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Money flow</p>
+                <h2>Where the value is now</h2>
+              </div>
+              <div class="legend" id="status-legend"></div>
+            </div>
+            <div id="flow-chart" class="chart flow-chart" role="img" aria-label="Funds flow chart"></div>
+          </article>
+
+          <aside class="panel branch-panel">
+            <div class="panel-heading compact">
+              <div>
+                <p class="eyebrow">Selected lead</p>
+                <h2 id="branch-title">-</h2>
+              </div>
+              <span id="branch-status" class="status-pill">-</span>
+            </div>
+            <p id="branch-summary" class="branch-summary"></p>
+            <div class="score-stack" id="branch-scores"></div>
+            <dl class="detail-list" id="branch-details"></dl>
+            <div class="next-action">
+              <span>Next action</span>
+              <p id="branch-action"></p>
+            </div>
+          </aside>
+        </section>
+
+        <section class="two-column">
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Recovery leads</p>
+                <h2>Branches to work</h2>
+              </div>
+            </div>
+            <div id="branch-list" class="branch-list"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Case graph</p>
+                <h2>Evidence map</h2>
+              </div>
+            </div>
+            <div id="network-chart" class="chart network-chart" role="img" aria-label="Case evidence graph"></div>
+          </article>
+        </section>
+
+        <section class="two-column timeline-notes">
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Timeline</p>
+                <h2>What changed</h2>
+              </div>
+            </div>
+            <ol class="timeline" id="timeline"></ol>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Working notes</p>
+                <h2>Manual comments</h2>
+              </div>
+            </div>
+            <div class="notes" id="notes"></div>
+          </article>
+        </section>
+
+        <section class="panel sources-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Sources</p>
+              <h2>Evidence links</h2>
+            </div>
+          </div>
+          <div id="sources" class="sources"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+    <script src="./data/iotex-iotube.js"></script>
+    <script src="./assets/app.js"></script>
+  </body>
+</html>
