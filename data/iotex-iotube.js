@@ -7,7 +7,7 @@ window.RECOVERY_CASE = {
       "Product view of the ioTube bridge incident: what was stolen, where funds are now, what is confirmed, what is only a lead, and what to do next.",
     victim: "IoTeX ioTube bridge",
     incidentDate: "2026-02-21",
-    lastReview: "2026-04-24",
+    lastReview: "2026-04-25",
     nextReview: "2026-04-26",
     publicMode: true
   },
@@ -161,8 +161,8 @@ window.RECOVERY_CASE = {
       statusKey: "service",
       confidence: 70,
       classification: "investigative-lead",
-      nextAction: "Ask IoTeX or an analytics vendor to identify the operator and preserve evidence.",
-      evidenceRefs: ["btc-service-cluster", "btc-service-touch-tx"]
+      nextAction: "A new follow-up spend on 2026-04-25 confirms ongoing cluster activity; keep tagging fresh outputs and ask for operator attribution.",
+      evidenceRefs: ["btc-service-cluster", "btc-service-touch-tx", "btc-service-touch-tx-2"]
     },
     {
       id: "btc-other-spent",
@@ -294,16 +294,17 @@ window.RECOVERY_CASE = {
       name: "bc1q7t4v service-like cluster",
       status: "service",
       classification: "investigative-lead",
-      summary: "A 0.75 BTC branch from the IoTeX peel touched a huge active cluster. It is the best owner-attribution lead.",
+      summary: "A 0.75 BTC branch from the IoTeX peel touched a huge active cluster. A follow-up spend was observed on 2026-04-25, and it remains the best owner-attribution lead.",
       scores: { recovery: 30, ownerId: 68, actionability: 76, confidence: 70 },
       nextAction: "Push this address to IoTeX or an analytics vendor and ask whether they can identify the operator.",
       details: [
         { label: "Address", value: "bc1q7t4vyehjsexdme84qhdgd4dawcn54djh0m78fz" },
         { label: "Touch amount", value: "0.75 BTC from bc1qpn94... branch" },
         { label: "Cluster size", value: "313,801 txs, 599,707+ BTC lifetime funded volume" },
+        { label: "Latest follow-up", value: "2026-04-25 follow-up spend tx observed (0.75 BTC-derived branch)" },
         { label: "Claim boundary", value: "Investigative lead only; not publicly labeled to a named exchange." }
       ],
-      evidenceRefs: ["btc-service-cluster", "btc-service-touch-tx"]
+      evidenceRefs: ["btc-service-cluster", "btc-service-touch-tx", "btc-service-touch-tx-2"]
     },
     {
       id: "ciotx-tail",
@@ -380,6 +381,13 @@ window.RECOVERY_CASE = {
       text: "Original BTC tail and 1EGcRh... remain unmoved; bc1q7t4v... remains highly active.",
       status: "live",
       classification: "confirmed-stolen-path"
+    },
+    {
+      date: "2026-04-25",
+      title: "Service-like lead spent",
+      text: "bc1q7t4v... showed a confirmed on-chain spend on 2026-04-25, so the branch is confirmed as active rather than stagnant.",
+      status: "service",
+      classification: "investigative-lead"
     }
   ],
   notes: [
@@ -411,6 +419,7 @@ window.RECOVERY_CASE = {
     { id: "btc-135o", label: "BTC address 135o...", url: "https://mempool.space/address/135oSa2fobTxtHtm5dwTREDyRY2o1DG1Aw" },
     { id: "btc-1egcrh", label: "1EGcRh second-hop", url: "https://mempool.space/address/1EGcRhfss16hxHTZVcNcnBdpYWbcxFAgQ8" },
     { id: "btc-service-cluster", label: "bc1q7t4v service-like cluster", url: "https://mempool.space/address/bc1q7t4vyehjsexdme84qhdgd4dawcn54djh0m78fz" },
-    { id: "btc-service-touch-tx", label: "Service-like cluster touch tx", url: "https://mempool.space/tx/4a5978c12cbe84f6aee8b098f2848e6ede9eb05421f0a4dbad37a0af28e6a8f5" }
+    { id: "btc-service-touch-tx", label: "Service-like cluster touch tx", url: "https://mempool.space/tx/4a5978c12cbe84f6aee8b098f2848e6ede9eb05421f0a4dbad37a0af28e6a8f5" },
+    { id: "btc-service-touch-tx-2", label: "Service-like cluster follow-up spend tx", url: "https://mempool.space/tx/9794790e42f3d5e28dca4eeb955c9f523ef2c16ca3c0c63634e75e883447c104" }
   ]
 };
