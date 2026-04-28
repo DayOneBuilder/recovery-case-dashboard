@@ -1,0 +1,195 @@
+#!/usr/bin/env node
+"use strict";
+
+const fs = require("fs");
+const path = require("path");
+
+const defaultSourceDirs = [
+  path.resolve(process.cwd(), "find_stolen_money", "cases"),
+  path.resolve(process.cwd(), "..", "find_stolen_money", "cases"),
+  "/home/ubuntu/find_stolen_money/cases",
+];
+
+function usage(exitCode = 0) {
+  const stream = exitCode ? process.stderr : process.stdout;
+  stream.write(`Usage:
+  scripts/discover-recovery-cases [--source-dir <dir>] [--markdown]
+
+Reads local find_stolen_money/cases/*.md files when available and emits recovery-case candidates.
+The script does not browse or contact anyone; live balances and public-source refreshes stay as follow-up checks.
+`);
+  process.exit(exitCode);
+}
+
+function getOptions(argv) {
+  const dirs = [];
+  let markdown = false;
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === "--help" || arg === "-h") usage(0);
+    if (arg === "--markdown") {
+      markdown = true;
+    } else if (arg === "--source-dir") {
+      const value = argv[i + 1];
+      if (!value) usage(1);
+      dirs.push(path.resolve(value));
+      i += 1;
+    } else {
+      usage(1);
+    }
+  }
+  return { dirs: dirs.length ? uniq(dirs) : uniq(defaultSourceDirs), markdown };
+}
+
+function uniq(values) {
+  return Array.from(new Set(values.filter(Boolean)));
+}
+
+function extractMatches(text, regex) {
+  return uniq(Array.from(text.matchAll(regex)).map((match) => match[0]));
+}
+
+function extractFirst(text, regex) {
+  const match = text.match(regex);
+  return match ? match[0].trim() : "";
+}
+
+function detectAssets(text) {
+  const assets = extractMatches(
+    text,
+    /\b(USDT|USDC|DAI|TUSD|BUSD|PYUSD|ETH|WETH|BTC|WBTC|BNB|MATIC|SOL|XLM|CIOTX|stETH|wstETH)\b/gi,
+  );
+  return uniq(assets.map((asset) => asset.toUpperCase()));
+}
+
+function detectChains(text) {
+  const chains = extractMatches(
+    text,
+    /\b(Ethereum|Bitcoin|BNB Chain|BSC|Polygon|Arbitrum|Optimism|Avalanche|Solana|Stellar|Tron|IoTeX|THORChain|Base)\b/gi,
+  );
+  return uniq(chains.map((chain) => chain.replace(/\s+/g, " ")));
+}
+
+function detectAddresses(text) {
+  return uniq([
+    ...extractMatches(text, /\b0x[a-fA-F0-9]{40}\b/g),
+    ...extractMatches(text, /\bbc1[ac-hj-np-z02-9]{25,90}\b/gi),
+    ...extractMatches(text, /\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b/g),
+    ...extractMatches(text, /\bG[A-Z2-7]{55}\b/g),
+    ...extractMatches(text, /\bT[A-Za-z1-9]{33}\b/g),
+  ]);
+}
+
+function detectTouchpoints(text) {
+  const names = extractMatches(
+    text,
+    /\b(Tether|Circle|Paxos|PayPal|Binance|Coinbase|Kraken|OKX|Bybit|KuCoin|ChangeNow|Easybit|THORChain|Stellar|issuer|bridge|CEX|exchange|compliance)\b/gi,
+  );
+  return uniq(names.map((name) => name.trim()));
+}
+
+function detectContacts(text) {
+  return extractMatches(text, /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi);
+}
+
+function scoreCandidate(candidate) {
+  let score = 0;
+  const reasons = [];
+  if (candidate.currentBalances.length) {
+    score += 20;
+    reasons.push("money currently visible on-chain");
+  }
+  if (candidate.freezeCapableAssets.length) {
+    score += 18;
+    reasons.push("freeze-capable asset present");
+  }
+  if (candidate.whoCanAct.length) {
+    score += 18;
+    reasons.push("specific actor can act");
+  }
+  if (candidate.victimContacts.length || candidate.officialContactLikely) {
+    score += 12;
+    reasons.push("official contact route likely");
+  }
+  if (candidate.reportLooksOld) {
+    score += 8;
+    reasons.push("older public report may have missed current state");
+  }
+  if (candidate.exploiterAddresses.length && candidate.stolenAmount) {
+    score += 12;
+    reasons.push("short evidence packet is feasible");
+  }
+  if (candidate.publicOnlyLikely) {
+    score += 12;
+    reasons.push("action can start from public evidence");
+  }
+  if (!candidate.exploiterAddresses.length) score -= 10;
+  if (!candidate.whoCanAct.length) score -= 12;
+  return {
+    score: Math.max(0, Math.min(100, score)),
+    reasons,
+  };
+}
+
+function parseCaseFile(filePath) {
+  const text = fs.readFileSync(filePath, "utf8");
+  const title = extractFirst(text, /^#\s+(.+)$/m).replace(/^#\s+/, "") ||
+    path.basename(filePath, ".md");
+  const assets = detectAssets(text);
+  const touchpoints = detectTouchpoints(text);
+  const candidate = {
+    title,
+    sourceFile: filePath,
+    stolenAmount: extractFirst(text, /(?:\$|USD\s*)[0-9][0-9,.]*(?:\s*(?:k|m|million|billion))?/i),
+    asset: assets,
+    chain: detectChains(text),
+    exploiterAddresses: detectAddresses(text),
+    currentBalances: extractMatches(text, /\b(?:current|balance|remaining|unmoved|frozen|blacklist(?:ed)?)\b[^\n]{0,120}/gi),
+    freezeCapableAssets: assets.filter((asset) =>
+      ["USDT", "USDC", "BUSD", "TUSD", "PYUSD"].includes(asset),
+    ),
+    venueBridgeIssuerTouchpoints: touchpoints,
+    victimContacts: detectContacts(text),
+    bountyRewardRoute: extractFirst(text, /\b(?:bounty|reward|bug bounty|immunefi|safe harbor)\b[^\n]{0,160}/i),
+    confidence: 40,
+    reward_probability: 30,
+    whoCanAct: touchpoints.filter((name) =>
+      /tether|circle|paxos|paypal|binance|coinbase|kraken|okx|bybit|kucoin|changenow|easybit|thorchain|stellar|issuer|bridge|cex|exchange|compliance/i.test(name),
+    ),
+    officialContactLikely: /contact|security|disclosure|compliance|support|bounty|immunefi/i.test(text),
+    reportLooksOld: /202[0-5]|2026-0[1-3]/.test(text),
+    publicOnlyLikely: /public|explorer|etherscan|tronscan|blockscout|mempool|stellar expert|source/i.test(text),
+  };
+  const score = scoreCandidate(candidate);
+  candidate.confidence = Math.min(90, 35 + Math.min(35, candidate.exploiterAddresses.length * 5) + (candidate.stolenAmount ? 10 : 0));
+  candidate.reward_probability = Math.min(85, score.score);
+  candidate.opportunityScore = score.score;
+  candidate.scoreReasons = score.reasons;
+  return candidate;
+}
+
+function listMarkdownFiles(dirs) {
+  const files = [];
+  for (const dir of dirs) {
+    if (!fs.existsSync(dir)) continue;
+    for (const name of fs.readdirSync(dir)) {
+      const filePath = path.join(dir, name);
+      if (name.endsWith(".md") && fs.statSync(filePath).isFile()) files.push(filePath);
+    }
+  }
+  return uniq(files).sort();
+}
+
+const options = getOptions(process.argv.slice(2));
+const files = listMarkdownFiles(options.dirs);
+const candidates = files.map(parseCaseFile).sort((a, b) => b.opportunityScore - a.opportunityScore);
+
+if (options.markdown) {
+  console.log("| Score | Case | Asset | Chain | Who can act | Source |");
+  console.log("| ---: | --- | --- | --- | --- | --- |");
+  for (const item of candidates) {
+    console.log(`| ${item.opportunityScore} | ${item.title} | ${item.asset.join(", ") || "-"} | ${item.chain.join(", ") || "-"} | ${item.whoCanAct.join(", ") || "-"} | ${item.sourceFile} |`);
+  }
+} else {
+  console.log(JSON.stringify({ sourceDirs: options.dirs, count: candidates.length, candidates }, null, 2));
+}

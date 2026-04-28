@@ -241,17 +241,17 @@ window.RECOVERY_CASE = {
       opportunityRef: "ciotx-authority-packet",
       contactRef: "iotex-official-contact",
       packetRef: "packet-ciotx-venues",
-      status: "drafted",
+      status: "sent_manual",
       priority: 1,
       title: "IoTeX CIOTX status / preservation question",
       valueAtStake: "76,448,785 CIOTX visible + 52.4M CIOTX venue-dependent",
       whyContactNow:
         "This is the strongest current hook and only IoTeX can confirm whether it is already frozen, preserved, settled, or still open.",
       sendCondition:
-        "Send after the latest packet is regenerated and the user approves the exact wording.",
+        "Already sent manually on 2026-04-28. Do not send a follow-up until IoTeX replies or the user explicitly approves it.",
       rewardProtection:
         "State good-faith public-source research, provide actionable value, and request standard researcher credit/reward only if the information materially contributes to recovery.",
-      nextFollowUp: "2026-05-01",
+      nextFollowUp: "Wait for reply or explicit approval",
       latestDraft: "outreach/drafts/iotex-iotube-ciotx-iotex-status-request.md",
       evidenceRefs: ["ciotx-a467", "iotex-month-review", "iotex-update-2"],
     },

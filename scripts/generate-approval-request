@@ -1,0 +1,181 @@
+#!/usr/bin/env node
+"use strict";
+
+const fs = require("fs");
+const path = require("path");
+const vm = require("vm");
+
+const repoRoot = path.resolve(__dirname, "..");
+const registryPath = path.join(repoRoot, "config", "cases.json");
+const args = process.argv.slice(2);
+
+function usage(exitCode = 0) {
+  const stream = exitCode ? process.stderr : process.stdout;
+  stream.write(`Usage:
+  scripts/generate-approval-request --list [case-id]
+  scripts/generate-approval-request [case-id] <outreach-id> [--write] [--json]
+
+Examples:
+  scripts/generate-approval-request --list
+  scripts/generate-approval-request iotex-iotube btc-service-attribution-question --write
+`);
+  process.exit(exitCode);
+}
+
+function fail(message) {
+  console.error(`generate-approval-request: ${message}`);
+  process.exit(1);
+}
+
+function asArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function loadCaseData(filePath) {
+  const code = fs.readFileSync(filePath, "utf8");
+  const context = { window: {} };
+  vm.createContext(context);
+  vm.runInContext(code, context, { filename: filePath });
+  return context.window.RECOVERY_CASE;
+}
+
+function findCase(registry, caseId) {
+  const entry = asArray(registry.cases).find((item) => item.id === caseId);
+  if (!entry) fail(`unknown case '${caseId}'`);
+  return entry;
+}
+
+function safeLocalPath(value) {
+  if (
+    typeof value !== "string" ||
+    !value ||
+    value.includes("://") ||
+    value.startsWith("/") ||
+    value.includes("..")
+  ) {
+    return "";
+  }
+  return value;
+}
+
+function packetPageUrl(publicUrl, localPath) {
+  const safePath = safeLocalPath(localPath);
+  if (!safePath) return "";
+  return `${publicUrl || ""}packet.html?file=${encodeURIComponent(safePath)}`;
+}
+
+function oneLine(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function buildApproval(caseData, item) {
+  const caseInfo = caseData.case || {};
+  const opportunityById = new Map(
+    asArray(caseData.recoveryOpportunities).map((entry) => [entry.id, entry]),
+  );
+  const contactById = new Map(asArray(caseData.contacts).map((entry) => [entry.id, entry]));
+  const packetById = new Map(
+    asArray(caseData.recoveryPackets).map((entry) => [entry.id, entry]),
+  );
+
+  const opportunity = opportunityById.get(item.opportunityRef);
+  const contact = contactById.get(item.contactRef);
+  const packet = packetById.get(item.packetRef);
+  if (!opportunity) fail(`outreach '${item.id}' references missing opportunity`);
+  if (!contact) fail(`outreach '${item.id}' references missing contact`);
+  if (!packet) fail(`outreach '${item.id}' references missing packet`);
+
+  const publicUrl = caseInfo.publicUrl || "";
+  const packetUrl = packetPageUrl(publicUrl, packet.packetFile);
+  const draftUrl = packetPageUrl(publicUrl, item.latestDraft);
+
+  const decision = {
+    approveText: `approve ${caseData.id} ${item.id}`,
+    rejectText: `reject ${caseData.id} ${item.id}: <reason>`,
+  };
+
+  const message = [
+    `Approval needed: ${caseInfo.title || caseData.id}`,
+    "",
+    `Case: ${caseInfo.victim || caseInfo.title || caseData.id}`,
+    `Write to: ${contact.organization || contact.name} (${contact.name})`,
+    `Why: ${oneLine(item.whyContactNow)}`,
+    `Value / asset: ${item.valueAtStake || opportunity.amount || opportunity.asset || "-"}`,
+    `Ask: ${oneLine(contact.nextAsk || packet.outcome)}`,
+    `Claim boundary: ${oneLine((opportunity.blockers || packet.missing || []).join("; "))}`,
+    "",
+    "Links:",
+    `- Dashboard: ${publicUrl}`,
+    packetUrl ? `- Evidence packet: ${packetUrl}` : "",
+    draftUrl ? `- Draft: ${draftUrl}` : "",
+    "",
+    "Decision:",
+    `- Approve: \`${decision.approveText}\``,
+    `- Reject: \`${decision.rejectText}\``,
+    "",
+    "No email or follow-up is sent by this script.",
+  ].filter((line) => line !== "").join("\n");
+
+  return {
+    caseId: caseData.id,
+    outreachId: item.id,
+    title: item.title,
+    recipient: contact.organization || contact.name,
+    valueAtStake: item.valueAtStake,
+    dashboardUrl: publicUrl,
+    packetUrl,
+    draftUrl,
+    decision,
+    message,
+  };
+}
+
+const registry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
+const knownCaseIds = new Set(asArray(registry.cases).map((entry) => entry.id));
+const listMode = args.includes("--list");
+const writeMode = args.includes("--write");
+const jsonMode = args.includes("--json");
+if (args.includes("--help") || args.includes("-h")) usage(0);
+
+const positional = args.filter((arg) => !arg.startsWith("--"));
+let caseId = registry.defaultCaseId;
+let outreachId = "";
+
+if (positional[0] && knownCaseIds.has(positional[0])) {
+  caseId = positional[0];
+  outreachId = positional[1] || "";
+} else if (positional[0]) {
+  outreachId = positional[0];
+}
+
+const caseConfig = findCase(registry, caseId);
+const caseData = loadCaseData(path.join(repoRoot, caseConfig.dataFile));
+
+if (listMode) {
+  for (const item of asArray(caseData.outreachQueue)) {
+    console.log(`${item.id}\t${item.status}\t${item.title}`);
+  }
+  process.exit(0);
+}
+
+if (!outreachId) usage(1);
+
+const item = asArray(caseData.outreachQueue).find((entry) => entry.id === outreachId);
+if (!item) fail(`unknown outreach id '${outreachId}'`);
+
+const approval = buildApproval(caseData, item);
+
+if (writeMode) {
+  const outDir = path.join(repoRoot, "outreach", "approvals");
+  fs.mkdirSync(outDir, { recursive: true });
+  const outPath = path.join(outDir, `${caseId}-${outreachId}.md`);
+  fs.writeFileSync(outPath, `${approval.message}\n`, "utf8");
+  approval.file = path.relative(repoRoot, outPath);
+}
+
+if (jsonMode) {
+  process.stdout.write(`${JSON.stringify(approval, null, 2)}\n`);
+} else {
+  process.stdout.write(`${approval.message}\n`);
+  if (approval.file) console.log(`\nWrote ${approval.file}`);
+}

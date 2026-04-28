@@ -75,6 +75,27 @@ The machine should interrupt the user only when it can say one of three things:
 
 External auto-send is disabled. The system prepares packets and drafts, then the user approves the recipient and wording.
 
+The approval request must include:
+
+- case;
+- recipient route;
+- why the message matters now;
+- amount, asset, and address or branch;
+- tracked dashboard, packet, and draft links using `/packet.html?file=...`;
+- explicit approve/reject text, or buttons if the chat runtime supports them.
+
+Only after approval can a separate sender send the email.
+
+## Reply Tracking
+
+If a victim team, issuer, bridge, venue, or exchange replies:
+
+- do not answer automatically;
+- save a reply summary in `outreach/ledger/`;
+- classify the reply as `replied`, `needs_more_evidence`, `already_handled`, `actionable`, `rejected`, `bounty_discussion`, or `wrong_route`;
+- update dashboard opportunity or outreach status only when actionability changes;
+- send the operator a concise summary with the proposed next step.
+
 ## Contact Standard
 
 Every contact route must include:

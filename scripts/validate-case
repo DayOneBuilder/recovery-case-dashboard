@@ -226,6 +226,27 @@ function validateCase(caseId, caseConfig) {
     fail(`${caseId}: no authorities defined`);
 }
 
+function validateLedger(caseId) {
+  const ledgerPath = path.join(repoRoot, "outreach", "ledger", `${caseId}.json`);
+  if (!fs.existsSync(ledgerPath)) return;
+
+  let ledger;
+  try {
+    ledger = JSON.parse(fs.readFileSync(ledgerPath, "utf8"));
+  } catch (error) {
+    fail(`${caseId}: invalid outreach ledger JSON: ${error.message}`);
+    return;
+  }
+
+  for (const [index, item] of asArray(ledger.items).entries()) {
+    if (item.packetUrl && !String(item.packetUrl).includes("/packet.html?file=")) {
+      fail(
+        `${caseId}: ledger item ${index} packetUrl must use tracked packet viewer`,
+      );
+    }
+  }
+}
+
 const registry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
 for (const htmlFile of ["index.html", "packet.html"]) {
   const html = fs.readFileSync(path.join(repoRoot, htmlFile), "utf8");
@@ -246,7 +267,10 @@ const selected = cases.filter(
 if (!selected.length) {
   fail(`unknown case '${requestedId}'`);
 } else {
-  for (const entry of selected) validateCase(entry.id, entry);
+  for (const entry of selected) {
+    validateCase(entry.id, entry);
+    validateLedger(entry.id);
+  }
 }
 
 if (!process.exitCode) {

@@ -164,11 +164,27 @@ Use `scripts/generate-outreach` to generate human-approved email drafts from the
 scripts/generate-outreach --list
 scripts/generate-outreach ciotx-iotex-status-request --force
 scripts/generate-outreach iotex-iotube ciotx-iotex-status-request --stdout
+scripts/generate-approval-request iotex-iotube btc-service-attribution-question
+scripts/record-outreach-reply iotex-iotube ciotx-iotex-status-request --classification replied --from sender@example.com --subject "Re: ..." --summary "..."
 ```
 
 Generated drafts live in `outreach/drafts/`. Before sending, re-check the evidence packet, current balances, recipient route, and wording.
 
 Evidence packets are linked through `packet.html?file=...` instead of raw markdown so public packet opens are covered by the same Google Analytics tag as the dashboard.
+
+Approval requests are Slack-ready text only. They include the case, recipient route, reason, value at stake, tracked dashboard/packet/draft links, and explicit `approve ...` / `reject ...` text decisions. They do not send email or Slack by themselves.
+
+Replies are recorded with `scripts/record-outreach-reply`. The allowed reply classifications are `replied`, `needs_more_evidence`, `already_handled`, `actionable`, `rejected`, `bounty_discussion`, and `wrong_route`. The script appends to `outreach/ledger/` and never sends a response automatically.
+
+## New Case Discovery
+
+Use `scripts/discover-recovery-cases` to turn local `find_stolen_money/cases/*.md` files into scored candidate recovery cases:
+
+```bash
+scripts/discover-recovery-cases --source-dir ../find_stolen_money/cases --markdown
+```
+
+The command is read-only and does not browse or contact anyone. It extracts stolen amount, assets, chains, addresses, touchpoints, victim contacts, reward route hints, confidence, and reward probability. See `docs/NEW_CASE_PIPELINE.md`.
 
 ## Data Safety
 

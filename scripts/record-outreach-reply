@@ -1,0 +1,214 @@
+#!/usr/bin/env node
+"use strict";
+
+const fs = require("fs");
+const path = require("path");
+
+const repoRoot = path.resolve(__dirname, "..");
+const registryPath = path.join(repoRoot, "config", "cases.json");
+const allowedClassifications = new Set([
+  "replied",
+  "needs_more_evidence",
+  "already_handled",
+  "actionable",
+  "rejected",
+  "bounty_discussion",
+  "wrong_route",
+]);
+
+function usage(exitCode = 0) {
+  const stream = exitCode ? process.stderr : process.stdout;
+  stream.write(`Usage:
+  scripts/record-outreach-reply [case-id] <outreach-id> --classification <status> --from <sender> --subject <subject> --summary <summary> [options]
+
+Options:
+  --received-at <YYYY-MM-DD>       Reply date, defaults to today UTC
+  --message-id <id>                Mail Message-ID or mailbox UID
+  --source <mailbox|manual|slack>  Source, defaults to manual
+  --proposed-next-step <text>      Suggested next operator action
+  --reply-file <path>              Local private/raw reply path, stored as a pointer only
+  --update-case-data               Also update outreachQueue status in data/<case>.js
+  --json                           Print JSON summary
+
+Classifications:
+  ${Array.from(allowedClassifications).join(", ")}
+`);
+  process.exit(exitCode);
+}
+
+function fail(message) {
+  console.error(`record-outreach-reply: ${message}`);
+  process.exit(1);
+}
+
+function asArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function parseArgs(argv) {
+  const valueOptions = new Set([
+    "--classification",
+    "--from",
+    "--subject",
+    "--summary",
+    "--received-at",
+    "--message-id",
+    "--source",
+    "--proposed-next-step",
+    "--reply-file",
+  ]);
+  const booleanOptions = new Set(["--update-case-data", "--json", "--help", "-h"]);
+  const options = new Map();
+  const flags = new Set();
+  const positional = [];
+
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (valueOptions.has(arg)) {
+      const value = argv[i + 1];
+      if (!value || value.startsWith("--")) fail(`${arg} requires a value`);
+      options.set(arg, value);
+      i += 1;
+    } else if (booleanOptions.has(arg)) {
+      flags.add(arg);
+    } else if (arg.startsWith("--")) {
+      fail(`unknown option: ${arg}`);
+    } else {
+      positional.push(arg);
+    }
+  }
+
+  return { options, flags, positional };
+}
+
+function getOption(parsed, name) {
+  return parsed.options.get(name) || "";
+}
+
+function todayUtc() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function loadRegistry() {
+  return JSON.parse(fs.readFileSync(registryPath, "utf8"));
+}
+
+function safeRelativePath(value) {
+  if (!value) return "";
+  const resolved = path.resolve(repoRoot, value);
+  const rel = path.relative(repoRoot, resolved);
+  if (rel.startsWith("..") || path.isAbsolute(rel)) {
+    fail(`reply-file must stay inside repo when recorded as a pointer: ${value}`);
+  }
+  return rel;
+}
+
+function updateCaseDataStatus(caseConfig, outreachId, classification) {
+  const dataPath = path.join(repoRoot, caseConfig.dataFile);
+  const source = fs.readFileSync(dataPath, "utf8");
+  const idNeedle = `id: "${outreachId}"`;
+  const idIndex = source.indexOf(idNeedle);
+  if (idIndex === -1) fail(`could not find outreach '${outreachId}' in ${caseConfig.dataFile}`);
+
+  const nextItemIndex = source.indexOf("\n    {", idIndex + idNeedle.length);
+  const endIndex = nextItemIndex === -1 ? source.indexOf("\n  ],", idIndex) : nextItemIndex;
+  if (endIndex === -1) fail(`could not locate outreach object boundary for '${outreachId}'`);
+
+  const before = source.slice(0, idIndex);
+  const itemBlock = source.slice(idIndex, endIndex);
+  const after = source.slice(endIndex);
+  const updatedBlock = itemBlock.replace(/status: "([^"]+)"/, `status: "${classification}"`);
+  if (updatedBlock === itemBlock) fail(`could not update status for outreach '${outreachId}'`);
+  fs.writeFileSync(dataPath, before + updatedBlock + after, "utf8");
+  return caseConfig.dataFile;
+}
+
+const args = process.argv.slice(2);
+const parsed = parseArgs(args);
+if (parsed.flags.has("--help") || parsed.flags.has("-h")) usage(0);
+
+const registry = loadRegistry();
+const knownCaseIds = new Set(asArray(registry.cases).map((entry) => entry.id));
+const positional = parsed.positional;
+let caseId = registry.defaultCaseId;
+let outreachId = "";
+
+if (positional[0] && knownCaseIds.has(positional[0])) {
+  caseId = positional[0];
+  outreachId = positional[1] || "";
+} else if (positional[0]) {
+  outreachId = positional[0];
+}
+
+if (!outreachId) usage(1);
+
+const classification = getOption(parsed, "--classification");
+if (!allowedClassifications.has(classification)) {
+  fail(`invalid classification '${classification}'`);
+}
+
+const sender = getOption(parsed, "--from");
+const subject = getOption(parsed, "--subject");
+const summary = getOption(parsed, "--summary");
+if (!sender || !subject || !summary) {
+  fail("--from, --subject, and --summary are required");
+}
+
+const caseConfig = asArray(registry.cases).find((entry) => entry.id === caseId);
+if (!caseConfig) fail(`unknown case '${caseId}'`);
+
+const ledgerPath = path.join(repoRoot, "outreach", "ledger", `${caseId}.json`);
+const ledger = fs.existsSync(ledgerPath)
+  ? JSON.parse(fs.readFileSync(ledgerPath, "utf8"))
+  : { schemaVersion: "1.0", caseId, items: [] };
+
+if (!Array.isArray(ledger.items)) ledger.items = [];
+
+const entry = {
+  outreachId,
+  kind: "reply",
+  status: classification,
+  receivedAt: getOption(parsed, "--received-at") || todayUtc(),
+  from: sender,
+  subject,
+  source: getOption(parsed, "--source") || "manual",
+  messageId: getOption(parsed, "--message-id") || "",
+  summary,
+  proposedNextStep: getOption(parsed, "--proposed-next-step") || "",
+  replyFile: safeRelativePath(getOption(parsed, "--reply-file")),
+  autoReplySent: false,
+};
+
+ledger.items.push(entry);
+fs.mkdirSync(path.dirname(ledgerPath), { recursive: true });
+fs.writeFileSync(ledgerPath, `${JSON.stringify(ledger, null, 2)}\n`, "utf8");
+
+let updatedDataFile = "";
+if (parsed.flags.has("--update-case-data")) {
+  updatedDataFile = updateCaseDataStatus(caseConfig, outreachId, classification);
+}
+
+const result = {
+  caseId,
+  outreachId,
+  classification,
+  ledger: path.relative(repoRoot, ledgerPath),
+  updatedDataFile,
+  autoReplySent: false,
+  slackSummary: [
+    `Reply tracked: ${caseId} / ${outreachId}`,
+    `From: ${sender}`,
+    `Classification: ${classification}`,
+    `Summary: ${summary}`,
+    entry.proposedNextStep ? `Proposed next step: ${entry.proposedNextStep}` : "",
+    "No automatic reply was sent.",
+  ].filter(Boolean).join("\n"),
+};
+
+if (parsed.flags.has("--json")) {
+  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+} else {
+  process.stdout.write(`${result.slackSummary}\n`);
+  console.log(`Ledger: ${result.ledger}`);
+  if (updatedDataFile) console.log(`Updated case data: ${updatedDataFile}`);
+}

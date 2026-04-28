@@ -10,7 +10,7 @@
       "recipient": "IoTeX team via official contact route",
       "subject": "Unknown; user-reported sent email",
       "dashboardUrl": "https://dayonebuilder.online/recovery-case-dashboard/?v=846c386",
-      "packetUrl": "https://dayonebuilder.online/recovery-case-dashboard/packets/iotex-ciotx-venues.md?v=846c386",
+      "packetUrl": "https://dayonebuilder.online/recovery-case-dashboard/packet.html?file=packets%2Fiotex-ciotx-venues.md&v=846c386",
       "notes": [
         "User reported sending a value-first routing/status question about the CIOTX branch.",
         "Message asked whether the branch is already frozen, preserved, settled, or otherwise handled.",

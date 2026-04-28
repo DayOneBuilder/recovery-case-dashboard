@@ -7,7 +7,7 @@ Use this workflow when refreshing an existing recovery case. The goal is to vali
 - Case id from `config/cases.json`.
 - Current case data file, for example `data/iotex-iotube.js`.
 - Existing dashboard facts: stolen assets, fund locations, classifications, priority actions, workstreams, timeline, notes, and sources.
-- Recovery-hook facts: `recoveryCommand`, `recoveryOpportunities`, `contacts`, `outreachQueue`, `authorities`, and `recoveryPackets`.
+- Recovery-hook facts: `recoveryCommand`, `recoveryOpportunities`, `contacts`, `outreachQueue`, `authorities`, `recoveryPackets`, and `outreach/ledger/`.
 - Current public sources and explorer views needed to validate the existing claims.
 
 ## Refresh Rules
@@ -20,7 +20,8 @@ Use this workflow when refreshing an existing recovery case. The goal is to vali
 6. Keep public-mode safety: do not add private victim communications, sealed legal process, API keys, or sensitive unreleased attribution.
 7. Prefer source-specific updates over broad rewrites. A one-line timeline delta is better than a rewritten case narrative when only one fact changed.
 8. Optimize for recovery hooks, not activity volume. A useful update changes who can act, what packet should be sent, what value is live, or why a previous claim is now wrong.
-9. Do not send external outreach. Update `outreachQueue` and regenerate drafts when the action path changes, then let the user approve sending.
+9. Do not send external outreach. Update `outreachQueue`, record reply state in `outreach/ledger/`, and regenerate drafts when the action path changes, then let the user approve sending.
+10. Do not run broad general research every refresh. Check only important changes: balance changed; freeze or blacklist status changed; a CEX, bridge, issuer, or venue touchpoint appeared; an opportunity became stronger or died; a new outreach draft is needed; or a reply arrived.
 
 ## Material Delta Gate
 
@@ -64,9 +65,11 @@ Commit only when the change can affect recovery work:
    - `disproven`: correct the claim and preserve a short explanation in notes or timeline.
 5. Update the data file only for changed facts and their dependent summaries. Do not add one source per high-volume service churn transaction.
 6. If an outreach item, contact route, packet, or reward-protection wording changes, regenerate affected drafts with `scripts/generate-outreach <outreach-id> --force`.
-7. Set `case.lastReview` to the refresh date. Adjust `case.nextReview` only if the review cadence changed.
-8. Run `scripts/validate-case` and verify the static page renders after the data update.
-9. Produce a concise refresh summary with:
+7. If a new outreach draft is needed, generate the approval text with `scripts/generate-approval-request <case-id> <outreach-id> --write`. Do not send the underlying email.
+8. If a reply arrived, record it with `scripts/record-outreach-reply` and classify it as one of: `replied`, `needs_more_evidence`, `already_handled`, `actionable`, `rejected`, `bounty_discussion`, or `wrong_route`. Do not answer the reply automatically.
+9. Set `case.lastReview` to the refresh date. Adjust `case.nextReview` only if the review cadence changed.
+10. Run `scripts/validate-case` and verify the static page renders after the data update.
+11. Produce a concise refresh summary with:
    - Case id and review date.
    - Sources checked.
    - Deltas applied.
@@ -75,7 +78,7 @@ Commit only when the change can affect recovery work:
 
 ## Delivery
 
-For scheduled OpenClaw isolated cron jobs, return the refresh summary as plain text and let the cron runner deliver it via `announce`. Do not call Slack or the generic message tool from inside the scheduled cron agent turn. Direct Slack sending is only for the manual fallback path in `scripts/case-refresh`, and that path must use a minimal message call without blocks or interactive fields.
+For scheduled OpenClaw isolated cron jobs, return the refresh summary as plain text and let the cron runner deliver it via `announce`. Do not call Slack or the generic message tool from inside the scheduled cron agent turn. Direct Slack sending from the manual fallback path is disabled unless the operator runs `scripts/case-refresh --notify`.
 
 The scheduled agent must always return a visible summary, even when nothing changed. Do not return `NO_REPLY` from scheduled cron runs because `NO_REPLY` is treated as silent delivery.
 

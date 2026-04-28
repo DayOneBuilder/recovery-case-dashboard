@@ -26,8 +26,12 @@ def fail(message: str, exit_code: int = 1) -> None:
 
 def usage() -> str:
     return (
-        "Usage: scripts/case-refresh [case-id]\n"
+        "Usage: scripts/case-refresh [case-id] [--notify]\n"
         "       scripts/case-refresh --list\n"
+        "       scripts/case-refresh --print-cron-message [case-id]\n"
+        "\n"
+        "--notify allows the direct-agent fallback to send the configured Slack update.\n"
+        "Scheduled OpenClaw cron delivery should use cron announce instead.\n"
         "\n"
         f"Default case id: {FALLBACK_DEFAULT_CASE_ID}"
     )
@@ -163,7 +167,7 @@ def enqueue_cron_run(job_id: str) -> subprocess.CompletedProcess[str]:
     return run_command(["openclaw", "cron", "run", job_id])
 
 
-def build_refresh_prompt(case_id: str, case: dict[str, Any]) -> str:
+def build_refresh_prompt(case_id: str, case: dict[str, Any], *, allow_direct_notify: bool) -> str:
     data_file_raw = require_case_string(case_id, case, "dataFile")
     workflow_raw = require_case_string(case_id, case, "refreshWorkflow")
     notify_channel = require_case_string(case_id, case, "notifyChannel")
@@ -174,6 +178,15 @@ def build_refresh_prompt(case_id: str, case: dict[str, Any]) -> str:
     workflow_file = resolve_repo_path(case_id, workflow_raw, "refreshWorkflow")
     readme_file = REPO_ROOT / "README.md"
 
+    direct_delivery_rules = (
+        f"- Direct fallback Slack send is explicitly allowed for this run. After validation, send a concise update via the message tool to channel={notify_channel}, target={notify_target}, threadId={notify_thread_id}.\n"
+        "- When using the message tool, pass only action=send, channel=slack, target, threadId, and message. Do not set blocks, interactive, buttons, or other optional Slack fields.\n"
+        "- After sending the Slack message, return exactly NO_REPLY.\n"
+        if allow_direct_notify
+        else
+        "- Direct fallback Slack send is NOT approved for this run. Do not call Slack or the message tool. Return the concise update as plain text; the operator can copy or rerun with --notify.\n"
+    )
+
     return (
         f"Incremental refresh for recovery case `{case_id}`.\n\n"
         f"Repo: {REPO_ROOT}\n"
@@ -181,32 +194,49 @@ def build_refresh_prompt(case_id: str, case: dict[str, Any]) -> str:
         f"Workflow file: {workflow_file}\n"
         f"README: {readme_file}\n\n"
         "This is NOT a fresh research task. Validate the CURRENT known public state and add only material deltas.\n\n"
+        "Project map:\n"
+        "- data/<case>.js is the dashboard source of truth.\n"
+        "- contacts/ holds contact policy and permitted-use boundaries.\n"
+        "- opportunities/ holds operator-facing recovery hooks.\n"
+        "- packets/ holds evidence packets; public links must use /packet.html?file=...\n"
+        "- outreach/ holds queues, templates, and drafts.\n"
+        "- outreach/ledger/ holds sent/reply state and must be checked before any outreach recommendation.\n"
+        "- scripts/generate-outreach writes drafts only; it never sends email.\n"
+        "- scripts/refresh-case and scripts/case-refresh trigger refreshes.\n"
+        "- scripts/validate-case is mandatory after any file edit.\n\n"
         "Rules:\n"
         "- Read the workflow file first, then README and the case data file.\n"
-	        "- Check only the already-known branches, addresses, venues, balances, dates, actions, classifications, and source-backed claims already present in the case.\n"
-	        "- Do not widen scope unless a targeted check shows a confirmed material change.\n"
-	        "- If nothing material changed, do not edit files and do not create a commit.\n"
-	        "- Do not commit volatile service-cluster counters by themselves, including tx count, lifetime funded volume, crawler-derived cluster size, or explorer rendering changes.\n"
-	        "- Do not commit repeated internal service-cluster churn txs unless they create a new venue, freeze target, stronger attribution, or other recovery hook.\n"
-	        "- Commit only if the delta affects recovery actionability: tracked stolen-tail movement, balance/freeze/blacklist/venue status, confirmed landing, attribution confidence, disproven claim, score/action, timeline, or source list.\n"
-	        "- Prioritize recovery hooks over trace volume: update recoveryCommand, recoveryOpportunities, contacts, outreachQueue, authorities, or recoveryPackets only when the action path changes.\n"
-	        "- If an outreach item changes, regenerate its draft with scripts/generate-outreach <outreach-id> --force.\n"
-	        "- Never send external outreach automatically; prepare drafts and report what needs user approval.\n"
-	        "- If material changes are confirmed, update only the necessary parts of the case file and keep the existing schema and public-claim boundaries intact.\n"
-	        "- After edits, run scripts/validate-case and a lightweight sanity check so the case JS still parses and exposes window.RECOVERY_CASE.\n"
-        f"- If repo files changed, run git status, commit with: Refresh case state: {case_id}, then git push origin main.\n"
-        f"- Then send a concise update yourself via the message tool to channel={notify_channel}, target={notify_target}, threadId={notify_thread_id}.\n"
-        "- When using the message tool, pass only action=send, channel=slack, target, threadId, and message. Do not set blocks, interactive, buttons, or other optional Slack fields.\n"
+        "- Check only important recovery deltas: balance changed; freeze or blacklist status changed; CEX, bridge, issuer, or venue touchpoint appeared; opportunity became stronger or died; a new outreach draft is needed; or a reply arrived.\n"
+        "- Do not run broad general research each cycle.\n"
+        "- Check outreach/ledger before recommending outreach. IoTeX CIOTX is already sent_manual; do not recommend a follow-up unless there is a reply or explicit operator approval.\n"
+        "- Do not widen scope unless a targeted check shows a confirmed material change.\n"
+        "- If nothing material changed, do not edit files and do not create a commit.\n"
+        "- Do not commit volatile service-cluster counters by themselves, including tx count, lifetime funded volume, crawler-derived cluster size, or explorer rendering changes.\n"
+        "- Do not commit repeated internal service-cluster churn txs unless they create a new venue, freeze target, stronger attribution, or other recovery hook.\n"
+        "- Commit only if the delta affects recovery actionability: tracked stolen-tail movement, balance/freeze/blacklist/venue status, confirmed landing, attribution confidence, disproven claim, score/action, timeline, source list, outreach status, or reply status.\n"
+        "- Prioritize recovery hooks over trace volume: update recoveryCommand, recoveryOpportunities, contacts, outreachQueue, authorities, or recoveryPackets only when the action path changes.\n"
+        "- If an outreach item changes, regenerate its draft with scripts/generate-outreach <outreach-id> --force.\n"
+        "- Never send external outreach, follow-ups, venue reports, or email replies automatically. Prepare drafts and report what needs user approval.\n"
+        "- If a reply arrived, do not answer it. Save a summary in outreach/ledger, classify it, update dashboard fields only if actionability changed, and propose the next step.\n"
+        "- If a new outreach draft is needed, generate the draft and approval request, then wait for approve/reject. Only an approved operator decision can authorize sending.\n"
+        "- If material changes are confirmed, update only the necessary parts of the case file and keep the existing schema and public-claim boundaries intact.\n"
+        "- After edits, run scripts/validate-case and a lightweight sanity check so the case JS still parses and exposes window.RECOVERY_CASE.\n"
+        f"- If repo files changed, run git status and commit with: Refresh case state: {case_id}. Do not push unless the operator explicitly approved pushing in this run.\n"
+        f"{direct_delivery_rules}"
         "- Slack update format:\n"
         f"  1) first line exactly one of: Проверил {case_id}, изменений нет. OR Обновил {case_id}.\n"
         "  2) then 2-5 short bullets with the exact deltas or exact re-validation points\n"
         "  3) if a commit was created, include the short hash in the message\n"
-        "- After sending the Slack message, return exactly NO_REPLY."
     )
 
 
-def launch_direct_agent_refresh(case_id: str, case: dict[str, Any]) -> tuple[subprocess.Popen[str], Path]:
-    prompt = build_refresh_prompt(case_id, case)
+def launch_direct_agent_refresh(
+    case_id: str,
+    case: dict[str, Any],
+    *,
+    allow_direct_notify: bool,
+) -> tuple[subprocess.Popen[str], Path]:
+    prompt = build_refresh_prompt(case_id, case, allow_direct_notify=allow_direct_notify)
     FALLBACK_LOG_DIR.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     log_path = FALLBACK_LOG_DIR / f"{case_id}-{timestamp}.log"
@@ -232,7 +262,19 @@ def launch_direct_agent_refresh(case_id: str, case: dict[str, Any]) -> tuple[sub
     return process, log_path
 
 
-def parse_args(argv: list[str]) -> tuple[bool, str | None]:
+def parse_args(argv: list[str]) -> tuple[bool, str | None, bool, bool]:
+    allow_direct_notify = False
+    should_print_cron_message = False
+    filtered: list[str] = []
+    for arg in argv:
+        if arg == "--notify":
+            allow_direct_notify = True
+        elif arg == "--print-cron-message":
+            should_print_cron_message = True
+        else:
+            filtered.append(arg)
+
+    argv = filtered
     if len(argv) > 2:
         fail(f"too many arguments\n{usage()}", exit_code=2)
 
@@ -242,15 +284,15 @@ def parse_args(argv: list[str]) -> tuple[bool, str | None]:
     if argv and argv[0] == "--list":
         if len(argv) > 1:
             fail("--list does not accept a case id", exit_code=2)
-        return True, None
+        return True, None, allow_direct_notify, should_print_cron_message
     if argv and argv[0].startswith("-"):
         fail(f"unknown option: {argv[0]}\n{usage()}", exit_code=2)
 
-    return False, argv[0] if argv else None
+    return False, argv[0] if argv else None, allow_direct_notify, should_print_cron_message
 
 
 def main(argv: list[str]) -> int:
-    should_list, requested_case_id = parse_args(argv)
+    should_list, requested_case_id, allow_direct_notify, should_print_cron_message = parse_args(argv)
     default_case_id, cases = load_registry()
 
     if should_list:
@@ -262,6 +304,10 @@ def main(argv: list[str]) -> int:
     if case is None:
         known = ", ".join(sorted(cases)) or "none"
         fail(f"unknown case id '{case_id}'. Known cases: {known}")
+
+    if should_print_cron_message:
+        print(build_refresh_prompt(case_id, case, allow_direct_notify=False))
+        return 0
 
     cron_job_name = require_case_string(case_id, case, "cronJobName")
     jobs = list_openclaw_crons()
@@ -289,13 +335,21 @@ def main(argv: list[str]) -> int:
         )
 
     try:
-        process, log_path = launch_direct_agent_refresh(case_id, case)
+        process, log_path = launch_direct_agent_refresh(
+            case_id,
+            case,
+            allow_direct_notify=allow_direct_notify,
+        )
     except OSError as exc:
         fail(f"{cron_error}\ndirect agent fallback could not be started: {exc}")
 
     print(f"Triggered refresh for case '{case_id}'.")
     print("Mode: direct-agent-fallback")
-    print("Result delivery: configured Slack thread via message tool")
+    print(
+        "Result delivery: configured Slack thread via message tool"
+        if allow_direct_notify
+        else "Result delivery: log only; rerun with --notify to approve Slack delivery"
+    )
     print(f"Background pid: {process.pid}")
     print(f"Log: {log_path}")
     if cron_error:
