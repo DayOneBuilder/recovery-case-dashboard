@@ -161,8 +161,8 @@ window.RECOVERY_CASE = {
       statusKey: "service",
       confidence: 70,
       classification: "investigative-lead",
-      nextAction: "Service-like cluster activity remains active, with confirmed hops through 20:53 UTC on 2026-04-27 and fresh unconfirmed mempool churn on 2026-04-28; keep tagging fresh outputs and ask for operator attribution.",
-      evidenceRefs: ["btc-service-cluster", "btc-service-touch-tx", "btc-service-touch-tx-2", "btc-service-touch-tx-3", "btc-service-touch-tx-4", "btc-service-touch-tx-5", "btc-service-touch-tx-6", "btc-service-touch-tx-7", "btc-service-touch-tx-8", "btc-service-touch-tx-9", "btc-service-touch-tx-10", "btc-service-touch-tx-11", "btc-service-touch-tx-12", "btc-service-touch-tx-13", "btc-service-touch-tx-14", "btc-service-touch-tx-15", "btc-service-touch-tx-16", "btc-service-touch-tx-17", "btc-service-touch-tx-18", "btc-service-touch-tx-19", "btc-service-touch-tx-20", "btc-service-touch-tx-21", "btc-service-touch-tx-22", "btc-service-touch-tx-23"]
+      nextAction: "Service-like cluster activity remains active, with confirmed hops through 03:00 UTC on 2026-04-28 and fresh mempool churn after that; keep tagging fresh outputs and ask for operator attribution.",
+      evidenceRefs: ["btc-service-cluster", "btc-service-touch-tx", "btc-service-touch-tx-2", "btc-service-touch-tx-3", "btc-service-touch-tx-4", "btc-service-touch-tx-5", "btc-service-touch-tx-6", "btc-service-touch-tx-7", "btc-service-touch-tx-8", "btc-service-touch-tx-9", "btc-service-touch-tx-10", "btc-service-touch-tx-11", "btc-service-touch-tx-12", "btc-service-touch-tx-13", "btc-service-touch-tx-14", "btc-service-touch-tx-15", "btc-service-touch-tx-16", "btc-service-touch-tx-17", "btc-service-touch-tx-18", "btc-service-touch-tx-19", "btc-service-touch-tx-20", "btc-service-touch-tx-21", "btc-service-touch-tx-22", "btc-service-touch-tx-23", "btc-service-touch-tx-24"]
     },
     {
       id: "btc-other-spent",
@@ -294,17 +294,17 @@ window.RECOVERY_CASE = {
       name: "bc1q7t4v service-like cluster",
       status: "service",
       classification: "investigative-lead",
-      summary: "A 0.75 BTC branch from the IoTeX peel touched a huge active cluster. Multiple confirmed follow-up spends were observed through 2026-04-27, and fresh unconfirmed mempool churn was seen on 2026-04-28, so this remains the best owner-attribution lead.",
+      summary: "A 0.75 BTC branch from the IoTeX peel touched a huge active cluster. Multiple confirmed follow-up spends were observed through 2026-04-28, including 02:54:25 UTC and 03:00:08 UTC, with still-pending mempool churn; this remains the best owner-attribution lead.",
       scores: { recovery: 30, ownerId: 68, actionability: 76, confidence: 70 },
       nextAction: "Push this address to IoTeX or an analytics vendor and ask whether they can identify the operator.",
       details: [
         { label: "Address", value: "bc1q7t4vyehjsexdme84qhdgd4dawcn54djh0m78fz" },
         { label: "Touch amount", value: "0.75 BTC from bc1qpn94... branch" },
         { label: "Cluster size", value: "313,801 txs, 599,707+ BTC lifetime funded volume" },
-        { label: "Latest follow-up", value: "2026-04-28 unconfirmed mempool spend(s): 72775b... and 2e0c3..., with no confirmed venue exit on this branch yet" },
+        { label: "Latest follow-up", value: "2026-04-28 confirmed service-like spend txs: 72775b..., 2e0c3..., plus one pending mempool spend: 79ba5f...; no confirmed venue exit on this branch yet" },
         { label: "Claim boundary", value: "Investigative lead only; not publicly labeled to a named exchange." }
       ],
-      evidenceRefs: ["btc-service-cluster", "btc-service-touch-tx", "btc-service-touch-tx-2", "btc-service-touch-tx-3", "btc-service-touch-tx-4", "btc-service-touch-tx-5", "btc-service-touch-tx-6", "btc-service-touch-tx-7", "btc-service-touch-tx-8", "btc-service-touch-tx-9", "btc-service-touch-tx-10", "btc-service-touch-tx-11", "btc-service-touch-tx-12", "btc-service-touch-tx-13", "btc-service-touch-tx-14", "btc-service-touch-tx-15", "btc-service-touch-tx-16", "btc-service-touch-tx-17", "btc-service-touch-tx-18", "btc-service-touch-tx-19", "btc-service-touch-tx-20", "btc-service-touch-tx-21", "btc-service-touch-tx-22", "btc-service-touch-tx-23"]
+      evidenceRefs: ["btc-service-cluster", "btc-service-touch-tx", "btc-service-touch-tx-2", "btc-service-touch-tx-3", "btc-service-touch-tx-4", "btc-service-touch-tx-5", "btc-service-touch-tx-6", "btc-service-touch-tx-7", "btc-service-touch-tx-8", "btc-service-touch-tx-9", "btc-service-touch-tx-10", "btc-service-touch-tx-11", "btc-service-touch-tx-12", "btc-service-touch-tx-13", "btc-service-touch-tx-14", "btc-service-touch-tx-15", "btc-service-touch-tx-16", "btc-service-touch-tx-17", "btc-service-touch-tx-18", "btc-service-touch-tx-19", "btc-service-touch-tx-20", "btc-service-touch-tx-21", "btc-service-touch-tx-22", "btc-service-touch-tx-23", "btc-service-touch-tx-24"]
     },
     {
       id: "ciotx-tail",
@@ -448,7 +448,7 @@ window.RECOVERY_CASE = {
     {
       date: "2026-04-28",
       title: "Service-like lead still in mempool churn",
-      text: "New unconfirmed service-like txs for the bc1q7t4v branch (txids 72775b..., 2e0c3..., and 97d1c...) were observed on 2026-04-28; still no confirmed venue exit or off-chain handoff of the 0.75 BTC stolen-tail touch.",
+      text: "Confirmed service-like txs were observed on 2026-04-28 at 02:54:25 UTC (including 72775b..., 2e0c3..., etc.), followed by fresh mempool churn at 03:00:08 UTC (79ba5f...), with no confirmed venue exit or off-chain handoff of the 0.75 BTC stolen-tail touch.",
       status: "service",
       classification: "investigative-lead"
     }
@@ -502,8 +502,9 @@ window.RECOVERY_CASE = {
     { id: "btc-service-touch-tx-18", label: "Service-like cluster confirmed spend tx (20:33:16 UTC)", url: "https://mempool.space/tx/2212b208abb6582b831e6896626fddca8fac60375ef786ec3026c5a7fe980291" },
     { id: "btc-service-touch-tx-19", label: "Service-like cluster confirmed spend tx (20:41:22 UTC)", url: "https://mempool.space/tx/62c5867175340c5e461fc86782cb9be6594a68ad72c7ce73452de71224f8cfa7" },
     { id: "btc-service-touch-tx-20", label: "Service-like cluster confirmed spend tx (20:53:12 UTC)", url: "https://mempool.space/tx/fb4c6485d4704a88988fa51a1188438b4e7807913f840b4ea5642b9aeafc1fc3" },
-    { id: "btc-service-touch-tx-21", label: "Service-like cluster unconfirmed mempool spend tx", url: "https://mempool.space/tx/72775b4f48c2d21ebef2f92e82729c6ef053f123db9e63445a9bdf957078ec1c" },
-    { id: "btc-service-touch-tx-22", label: "Service-like cluster unconfirmed mempool spend tx", url: "https://mempool.space/tx/2e0c3e585757f46eca8c351cfb82271c0f5014bc2fe59769ae2555f8041b959d" },
-    { id: "btc-service-touch-tx-23", label: "Service-like cluster unconfirmed mempool spend tx", url: "https://mempool.space/tx/f9dba93155c4757848daba2f06028d30e2a6af5e9cb24c57ae32387f5136cf62" }
+    { id: "btc-service-touch-tx-21", label: "Service-like cluster confirmed spend tx (02:54:25 UTC)", url: "https://mempool.space/tx/72775b4f48c2d21ebef2f92e82729c6ef053f123db9e63445a9bdf957078ec1c" },
+    { id: "btc-service-touch-tx-22", label: "Service-like cluster confirmed spend tx (02:54:25 UTC)", url: "https://mempool.space/tx/2e0c3e585757f46eca8c351cfb82271c0f5014bc2fe59769ae2555f8041b959d" },
+    { id: "btc-service-touch-tx-23", label: "Service-like cluster confirmed spend tx (02:54:25 UTC)", url: "https://mempool.space/tx/f9dba93155c4757848daba2f06028d30e2a6af5e9cb24c57ae32387f5136cf62" },
+    { id: "btc-service-touch-tx-24", label: "Service-like cluster pending mempool spend tx", url: "https://mempool.space/tx/79ba5f48c3ec839a846bda2ca7924f56e2d90785e26f749cf68c9e8b04e0541b" }
   ]
 };
