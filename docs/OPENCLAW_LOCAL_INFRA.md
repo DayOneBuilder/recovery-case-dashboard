@@ -13,7 +13,7 @@ Checked on 2026-04-28 UTC after cloning the project onto this machine.
 - Project registry notification target: `C0AKB50Q12P` (`#general`), no thread.
 - Slack bot `molt3` was not a member of `#general` when checked. `conversations.join` failed with `missing_scope`, so invite the bot to `#general` if cron delivery fails.
 - OpenClaw cron store: `~/.openclaw/cron/jobs.json`.
-- Current OpenClaw cron jobs: none. `openclaw cron list --json` returned an empty `jobs` list.
+- Current recovery cron job: `Recovery case refresh: iotex-iotube`, id `5b336c8e-73b6-42af-af68-49929b375fb3`, every 3 hours, model `openai-codex/gpt-5.3-codex-spark`, delivery `slack channel:C0AKB50Q12P`.
 - Gateway logs: `journalctl --user -u openclaw-gateway.service`.
 - OpenClaw local logs: `~/.openclaw/logs/`.
 - Direct-agent fallback logs from this repo: `/tmp/case-refresh/<case>-<timestamp>.log`.
@@ -51,7 +51,7 @@ The mailbox auth probe in `~/.openclaw/workspace/assets/dayonebuilder-mail-auth-
 
 ## Recovery Project Implications
 
-- The expected 3-hour OpenClaw cron job is installed on this machine only after `openclaw cron list --all --json` shows `Recovery case refresh: iotex-iotube`.
+- The expected 3-hour OpenClaw cron job is installed on this machine as `5b336c8e-73b6-42af-af68-49929b375fb3`.
 - `scripts/generate-outreach` only writes drafts. It does not send email.
 - `scripts/generate-approval-request` creates the operator approval message.
 - `scripts/record-outreach-reply` records replies in `outreach/ledger/` and never sends a response.
