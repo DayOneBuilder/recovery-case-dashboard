@@ -7,8 +7,13 @@
 
   const caseInfo = caseData.case || caseData;
   const workstreams = caseData.workstreams || caseData.branches || [];
-  const flowData = caseData.visuals?.flow || caseData.flow || { nodes: [], links: [] };
-  const networkData = caseData.visuals?.network || caseData.network || { categories: [], nodes: [], links: [] };
+  const flowData = caseData.visuals?.flow ||
+    caseData.flow || { nodes: [], links: [] };
+  const networkData = caseData.visuals?.network ||
+    caseData.network || { categories: [], nodes: [], links: [] };
+  const sourceById = new Map(
+    (caseData.sources || []).map((source) => [source.id, source]),
+  );
 
   const statusColors = {
     confirmed: "#143d33",
@@ -18,7 +23,7 @@
     service: "#b66a10",
     offchain: "#6d6558",
     frozen: "#3b7c92",
-    unknown: "#b33a2c"
+    unknown: "#b33a2c",
   };
 
   const classificationMeta = {
@@ -26,20 +31,20 @@
       label: "Confirmed stolen path",
       color: "#157f58",
       lineType: "solid",
-      opacity: 0.78
+      opacity: 0.78,
     },
     "investigative-lead": {
       label: "Investigative lead",
       color: "#b66a10",
       lineType: "dashed",
-      opacity: 0.58
+      opacity: 0.58,
     },
     context: {
       label: "Context / source",
       color: "#6d6558",
       lineType: "dotted",
-      opacity: 0.45
-    }
+      opacity: 0.45,
+    },
   };
 
   let selectedBranchId = workstreams[0]?.id || "";
@@ -57,7 +62,7 @@
         "<": "&lt;",
         ">": "&gt;",
         '"': "&quot;",
-        "'": "&#039;"
+        "'": "&#039;",
       };
       return entities[char];
     });
@@ -77,7 +82,7 @@
       service: "Service lead",
       offchain: "Off-chain",
       frozen: "Source",
-      unknown: "Unknown"
+      unknown: "Unknown",
     };
     return labels[status] || status || "Unknown";
   }
@@ -91,7 +96,9 @@
   }
 
   function className(classification) {
-    return String(classification || "context").replace(/[^a-z0-9-]/gi, "-").toLowerCase();
+    return String(classification || "context")
+      .replace(/[^a-z0-9-]/gi, "-")
+      .toLowerCase();
   }
 
   function classificationLabel(classification) {
@@ -106,17 +113,62 @@
     return typeof value === "number" ? `${Math.round(value)}%` : "-";
   }
 
+  function scoreWidth(value) {
+    if (typeof value !== "number") return 0;
+    return Math.max(0, Math.min(100, Math.round(value)));
+  }
+
   function sourceUrl(url) {
     const value = String(url || "");
-    if (value.startsWith("http://") || value.startsWith("https://")) return value;
+    if (value.startsWith("http://") || value.startsWith("https://"))
+      return value;
     return "#";
+  }
+
+  function localPath(url) {
+    const value = String(url || "");
+    if (
+      !value ||
+      value.includes("://") ||
+      value.startsWith("/") ||
+      value.includes("..")
+    )
+      return "";
+    return value;
+  }
+
+  function sourceLinks(refs = [], limit = 4) {
+    const links = refs
+      .map((ref) => sourceById.get(ref))
+      .filter(Boolean)
+      .slice(0, limit)
+      .map(
+        (source) =>
+          `<a href="${escapeHtml(sourceUrl(source.url))}" target="_blank" rel="noreferrer">${escapeHtml(source.label)}</a>`,
+      );
+
+    if (!links.length) return "";
+    const hiddenCount = Math.max(0, refs.length - links.length);
+    return `
+      <div class="source-chips">
+        ${links.join("")}
+        ${hiddenCount ? `<span>+${escapeHtml(hiddenCount)} more</span>` : ""}
+      </div>
+    `;
+  }
+
+  function bulletList(items = []) {
+    if (!items.length) return "";
+    return `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
   }
 
   function initHeader() {
     byId("case-title").textContent = caseInfo.title;
     byId("case-subtitle").textContent = caseInfo.subtitle;
-    byId("last-review").textContent = caseInfo.lastReview || caseData.review?.last || "-";
-    byId("next-review").textContent = `Next review: ${caseInfo.nextReview || caseData.review?.next || "-"}`;
+    byId("last-review").textContent =
+      caseInfo.lastReview || caseData.review?.last || "-";
+    byId("next-review").textContent =
+      `Next review: ${caseInfo.nextReview || caseData.review?.next || "-"}`;
   }
 
   function renderExploitBrief() {
@@ -145,7 +197,7 @@
                 ${classificationPill(item.classification)}
                 <small>${escapeHtml(item.note)}</small>
               </article>
-            `
+            `,
           )
           .join("")}
       </div>
@@ -184,8 +236,110 @@
             </div>
             <p>${escapeHtml(item.why)}</p>
           </article>
-        `
+        `,
       )
+      .join("");
+  }
+
+  function renderRecoveryOpportunities() {
+    byId("recovery-opportunities").innerHTML = (
+      caseData.recoveryOpportunities || []
+    )
+      .map((item) => {
+        const color = statusColor(item.statusKey);
+        return `
+          <article class="opportunity-card" style="--opportunity-color:${color}">
+            <div class="opportunity-top">
+              <div>
+                <span class="opportunity-rank">#${escapeHtml(item.rank)}</span>
+                <h3>${escapeHtml(item.title)}</h3>
+              </div>
+              <div class="opportunity-score">
+                <strong>${escapeHtml(scoreWidth(item.score))}</strong>
+                <span>/100</span>
+              </div>
+            </div>
+            <div class="opportunity-meta">
+              <span>${escapeHtml(item.amount)}</span>
+              <span>${escapeHtml(item.hookType)}</span>
+              <span>${escapeHtml(item.urgency)}</span>
+            </div>
+            <p>${escapeHtml(item.whyNow)}</p>
+            <dl class="opportunity-details">
+              <div><dt>Action</dt><dd>${escapeHtml(item.nextAction)}</dd></div>
+              <div><dt>Why missed</dt><dd>${escapeHtml(item.whyMissed)}</dd></div>
+              <div><dt>Blocked by</dt><dd>${escapeHtml((item.blockers || []).join("; "))}</dd></div>
+            </dl>
+            <div class="score-bar opportunity-bar"><span style="width:${scoreWidth(item.score)}%; --score-color:${color}"></span></div>
+            ${sourceLinks(item.evidenceRefs, 3)}
+          </article>
+        `;
+      })
+      .join("");
+  }
+
+  function renderAuthorities() {
+    byId("authorities").innerHTML = (caseData.authorities || [])
+      .map((item) => {
+        const color = statusColor(item.statusKey);
+        return `
+          <article class="authority-card">
+            <div class="authority-head">
+              <div>
+                <strong>${escapeHtml(item.name)}</strong>
+                <span>${escapeHtml(item.type)}</span>
+              </div>
+              <span class="status-pill compact" style="background:${color}">${escapeHtml(item.status)}</span>
+            </div>
+            <p>${escapeHtml(item.canDo)}</p>
+            <dl class="compact-details">
+              <div><dt>Need</dt><dd>${escapeHtml(item.needs)}</dd></div>
+              <div><dt>Limit</dt><dd>${escapeHtml(item.limits)}</dd></div>
+            </dl>
+            ${sourceLinks(item.evidenceRefs, 2)}
+          </article>
+        `;
+      })
+      .join("");
+  }
+
+  function renderRecoveryPackets() {
+    byId("recovery-packets").innerHTML = (caseData.recoveryPackets || [])
+      .map((item) => {
+        const color = statusColor(item.statusKey);
+        return `
+          <article class="packet-card">
+            <div class="packet-head">
+              <div>
+                <strong>${escapeHtml(item.title)}</strong>
+                <span>${escapeHtml(item.target)}</span>
+              </div>
+              <span class="status-pill compact" style="background:${color}">${escapeHtml(item.status)}</span>
+            </div>
+            <p>${escapeHtml(item.outcome)}</p>
+            <div class="packet-columns">
+              <div>
+                <span>Asks</span>
+                ${bulletList(item.asks)}
+              </div>
+              <div>
+                <span>Missing</span>
+                ${bulletList(item.missing)}
+              </div>
+            </div>
+            <div class="next-action slim">
+              <span>Next packet step</span>
+              <p>${escapeHtml(item.nextStep)}</p>
+            </div>
+            ${
+              localPath(item.packetFile)
+                ? `<a class="packet-link" href="${escapeHtml(localPath(item.packetFile))}">Open packet draft</a>`
+                : ""
+            }
+            ${sourceLinks(item.evidenceRefs, 3)}
+          </article>
+        `;
+      })
       .join("");
   }
 
@@ -229,13 +383,19 @@
     `;
 
     document.querySelectorAll("[data-fund-workstream]").forEach((button) => {
-      button.addEventListener("click", () => selectBranch(button.dataset.fundWorkstream));
+      button.addEventListener("click", () =>
+        selectBranch(button.dataset.fundWorkstream),
+      );
     });
   }
 
   function renderLegend() {
     const classifications = Array.from(
-      new Set([...flowData.nodes, ...flowData.links].map((item) => item.classification || "context"))
+      new Set(
+        [...flowData.nodes, ...flowData.links].map(
+          (item) => item.classification || "context",
+        ),
+      ),
     );
 
     byId("status-legend").innerHTML = classifications
@@ -265,13 +425,14 @@
         name: node.name,
         x: compactFlow ? node.mobileX : node.x,
         y: compactFlow ? node.mobileY : node.y,
-        symbol: node.classification === "investigative-lead" ? "diamond" : "circle",
+        symbol:
+          node.classification === "investigative-lead" ? "diamond" : "circle",
         symbolSize: compactFlow ? node.mobileSize || 38 : node.size || 48,
         tooltip: `${escapeHtml(node.tooltip || node.name)}<br>${escapeHtml(meta.label)}`,
         itemStyle: {
           color: statusColor(node.status),
           borderColor: meta.color,
-          borderWidth: node.classification === "investigative-lead" ? 4 : 2
+          borderWidth: node.classification === "investigative-lead" ? 4 : 2,
         },
         label: {
           show: true,
@@ -279,10 +440,12 @@
           color: "#151a17",
           fontSize: compactFlow ? 10 : 12,
           fontWeight: 700,
-          position: compactFlow ? node.mobileLabelPosition || "right" : node.labelPosition || "bottom",
+          position: compactFlow
+            ? node.mobileLabelPosition || "right"
+            : node.labelPosition || "bottom",
           width: compactFlow ? 104 : 130,
-          overflow: "break"
-        }
+          overflow: "break",
+        },
       };
     });
 
@@ -295,7 +458,7 @@
             return `${escapeHtml(params.data.source)} -> ${escapeHtml(params.data.target)}<br><b>${escapeHtml(params.data.label || params.data.value)}</b><br>${escapeHtml(meta.label)}`;
           }
           return params.data.tooltip || escapeHtml(params.name);
-        }
+        },
       },
       series: [
         {
@@ -311,22 +474,22 @@
                 type: meta.lineType,
                 width: link.width || Math.max(2, Math.min(14, link.value / 4)),
                 curveness: link.curveness ?? 0.18,
-                opacity: meta.opacity
+                opacity: meta.opacity,
               },
               label: {
                 show: false,
                 formatter: link.label,
                 color: "#4b554e",
-                fontSize: 11
-              }
+                fontSize: 11,
+              },
             };
           }),
           roam: false,
           edgeSymbol: ["none", "arrow"],
           edgeSymbolSize: [0, 9],
-          emphasis: { focus: "adjacency" }
-        }
-      ]
+          emphasis: { focus: "adjacency" },
+        },
+      ],
     });
   }
 
@@ -336,20 +499,23 @@
       return;
     }
 
-    networkChart = echarts.init(byId("network-chart"), null, { renderer: "svg" });
+    networkChart = echarts.init(byId("network-chart"), null, {
+      renderer: "svg",
+    });
     const categories = networkData.categories.map((name) => ({ name }));
     const nodes = networkData.nodes.map((node) => {
       const meta = classMeta(node.classification);
       return {
         ...node,
-        symbol: node.classification === "investigative-lead" ? "diamond" : "circle",
+        symbol:
+          node.classification === "investigative-lead" ? "diamond" : "circle",
         symbolSize: node.size,
         itemStyle: {
           color: statusColor(node.status),
           borderColor: meta.color,
-          borderWidth: node.classification === "investigative-lead" ? 4 : 2
+          borderWidth: node.classification === "investigative-lead" ? 4 : 2,
         },
-        label: { show: true, formatter: node.label || node.name }
+        label: { show: true, formatter: node.label || node.name },
       };
     });
 
@@ -360,11 +526,11 @@
             return `${escapeHtml(params.data.source)} -> ${escapeHtml(params.data.target)}<br>${escapeHtml(params.data.value || "")}<br>${escapeHtml(classificationLabel(params.data.classification))}`;
           }
           return `${escapeHtml(params.data.tooltip || params.name)}<br>${escapeHtml(classificationLabel(params.data.classification))}`;
-        }
+        },
       },
       legend: {
         bottom: 0,
-        textStyle: { color: "#607067" }
+        textStyle: { color: "#607067" },
       },
       series: [
         {
@@ -380,25 +546,25 @@
                 color: meta.color,
                 type: meta.lineType,
                 opacity: meta.opacity,
-                width: link.classification === "investigative-lead" ? 2.5 : 2
-              }
+                width: link.classification === "investigative-lead" ? 2.5 : 2,
+              },
             };
           }),
           roam: true,
           draggable: true,
           force: {
             repulsion: 260,
-            edgeLength: [70, 160]
+            edgeLength: [70, 160],
           },
           label: {
             color: "#151a17",
-            fontSize: 11
+            fontSize: 11,
           },
           edgeLabel: {
-            show: false
-          }
-        }
-      ]
+            show: false,
+          },
+        },
+      ],
     });
   }
 
@@ -431,7 +597,9 @@
       .join("");
 
     document.querySelectorAll("[data-workstream]").forEach((button) => {
-      button.addEventListener("click", () => selectBranch(button.dataset.workstream));
+      button.addEventListener("click", () =>
+        selectBranch(button.dataset.workstream),
+      );
     });
   }
 
@@ -443,8 +611,11 @@
     byId("branch-title").textContent = branch.name;
     byId("branch-status").textContent = statusLabel(branch.status);
     byId("branch-status").style.background = color;
-    byId("branch-classification").textContent = classificationLabel(branch.classification);
-    byId("branch-classification").className = `class-pill class-${className(branch.classification)}`;
+    byId("branch-classification").textContent = classificationLabel(
+      branch.classification,
+    );
+    byId("branch-classification").className =
+      `class-pill class-${className(branch.classification)}`;
     byId("branch-summary").textContent = branch.summary;
     byId("branch-action").textContent = branch.nextAction;
 
@@ -452,14 +623,14 @@
       ["Recovery chance", branch.scores.recovery, statusColors.live],
       ["Owner ID chance", branch.scores.ownerId, statusColors.service],
       ["Actionability", branch.scores.actionability, statusColors.tracing],
-      ["Confidence", branch.scores.confidence, statusColors.constrained]
+      ["Confidence", branch.scores.confidence, statusColors.constrained],
     ]
       .map(([label, value, scoreColor]) => {
         return `
-          <div class="score-row">
-            <div class="score-label"><span>${escapeHtml(label)}</span><strong>${escapeHtml(pct(value))}</strong></div>
-            <div class="score-bar"><span style="width:${escapeHtml(value)}%; --score-color:${scoreColor}"></span></div>
-          </div>
+	          <div class="score-row">
+	            <div class="score-label"><span>${escapeHtml(label)}</span><strong>${escapeHtml(pct(value))}</strong></div>
+	            <div class="score-bar"><span style="width:${scoreWidth(value)}%; --score-color:${scoreColor}"></span></div>
+	          </div>
         `;
       })
       .join("");
@@ -507,7 +678,10 @@
 
   function renderSources() {
     byId("sources").innerHTML = (caseData.sources || [])
-      .map((source) => `<a href="${escapeHtml(sourceUrl(source.url))}" target="_blank" rel="noreferrer">${escapeHtml(source.label)}</a>`)
+      .map(
+        (source) =>
+          `<a href="${escapeHtml(sourceUrl(source.url))}" target="_blank" rel="noreferrer">${escapeHtml(source.label)}</a>`,
+      )
       .join("");
   }
 
@@ -520,6 +694,9 @@
     initHeader();
     renderExploitBrief();
     renderTopSummary();
+    renderRecoveryOpportunities();
+    renderAuthorities();
+    renderRecoveryPackets();
     renderPriorityActions();
     renderFundLocations();
     renderLegend();

@@ -109,3 +109,23 @@ Reasoning: recovery stakeholders need continuity and clean diffs. A full re-rese
 Tradeoff: analysts must be disciplined about checking the existing source trail and recording unchanged validations separately from data edits.
 
 Implementation: `config/cases.json` maps dashboard case ids to OpenClaw cron job names, and `scripts/case-refresh` queues the matching external cron job. The static site remains static; the operator command only starts the refresh workflow.
+
+## 12. Recovery Hooks Before Transaction Churn
+
+Decision: rank and display recovery opportunities before detailed fund-flow charts.
+
+Reasoning: a transaction trace is only valuable when it creates an action path. The dashboard now separates three concepts:
+
+- `fundLocations`: where value or leads are currently represented.
+- `recoveryOpportunities`: ranked chances to create a freeze, preservation, attribution, or official escalation.
+- `recoveryPackets`: concrete evidence bundles that can be sent to an authority.
+
+Tradeoff: this is less like a block explorer and more like an action board. That is intentional. The product should help find overlooked recovery hooks, not reward agents for committing every service-cluster churn transaction.
+
+## 13. Churn-Only Updates Are Invalid
+
+Decision: repeated internal activity on a high-volume service-like cluster is not a material dashboard delta by itself.
+
+Reasoning: service churn can create many commits without increasing recovery probability. A refresh may mention unchanged or noisy checks in Slack, but it should not mutate case data unless the update changes actionability: new venue landing, balance/freeze status, stronger attribution, disproven claim, new authority, packet status, or score/action change.
+
+Implementation: `scripts/validate-case` rejects unbounded `btc-service-touch-tx-N` sources so the IoTeX case does not regress into a raw tx log.

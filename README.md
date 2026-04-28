@@ -1,8 +1,10 @@
 # Recovery Case Dashboard
 
-Static product dashboard for presenting the recovery state of a single crypto incident.
+Static product dashboard for finding and presenting actionable recovery hooks in a crypto incident.
 
 The first case is `IoTeX ioTube`. The dashboard is intentionally static: analysis is performed manually, then the case data file is updated and committed. This keeps the first version simple enough to host on GitHub Pages while still preserving the case-board structure used by professional recovery work.
+
+The product goal is not to redraw public traces. The goal is to surface missed or underworked recovery actions: live balances, freeze-capable authorities, venue handoffs, issuer controls, victim-side asks, and evidence packets that can be sent to someone with power to act.
 
 ## Product Direction
 
@@ -12,13 +14,17 @@ The v2 dashboard is oriented around the four questions a recovery stakeholder as
 - Where are funds now?
 - What is confirmed versus only an investigative lead?
 - What actions should happen now?
+- Who can act, and what exact packet should be sent?
 
-Charts remain useful, but they are no longer the primary interface. The top of the page now contains the exploit/theft brief, separated recovery buckets, priority actions, and a scannable funds-location table before the graph and timeline sections.
+Charts remain useful, but they are no longer the primary interface. The top of the page now contains the exploit/theft brief, separated recovery buckets, ranked recovery hooks, authority constraints, evidence packets, priority actions, and a scannable funds-location table before the graph and timeline sections.
 
 ## What It Shows
 
 - Exploit/theft brief with the stolen assets and claim boundaries
 - Top summary buckets for stolen total, visible on-chain value, constrained value, venue-dependent value, and best lead
+- Ranked recovery opportunities with score, action, blocker, and why the lead may have been missed
+- Authorities that can freeze, preserve, identify, or officially escalate a branch
+- Evidence packets that convert research into a concrete ask
 - Priority actions with owner, target, and reason
 - Where-funds-are-now table with asset, location, amount, status, confidence, classification, and next action
 - Money-flow graph with confirmed paths visually separated from leads
@@ -37,12 +43,17 @@ Charts remain useful, but they are no longer the primary interface. The top of t
 - `exploit`: theft summary, vector, stolen total, and `whatWasStolen` rows.
 - `topSummary`: five product buckets shown near the top of the page.
 - `priorityActions`: ordered actions with owner, target, and rationale.
+- `recoveryOpportunities`: ranked hooks scored by live value, authority, evidence strength, novelty, urgency, and blockers.
+- `authorities`: parties with power to act, plus what they need and what public data cannot prove.
+- `recoveryPackets`: packet definitions that turn evidence into venue, issuer, victim, or analytics-vendor asks.
 - `fundLocations`: the scannable current-location table. Each row carries `classification`, `confidence`, and `evidenceRefs`.
 - `visuals.flow` and `visuals.network`: curated chart nodes and links. Links use `classification` to render confirmed paths differently from leads.
 - `workstreams`: selectable branch/workstream cards with scores, details, and next action.
 - `timeline`, `notes`, and `sources`: supporting context and source links.
 
 Use `classification: "confirmed-stolen-path"` only when the path is supported as stolen-funds movement. Use `classification: "investigative-lead"` for unresolved service, venue, owner-ID, or peel-chain hypotheses.
+
+Recovery opportunities are stricter than leads. A lead becomes an opportunity only when there is a plausible actor who can do something now: freeze, preserve records, confirm status, identify an operator, or authorize outreach.
 
 ## Project Layout
 
@@ -58,9 +69,15 @@ Use `classification: "confirmed-stolen-path"` only when the path is supported as
 │   └── iotex-iotube.js
 ├── docs/
 │   ├── CASE_REFRESH_WORKFLOW.md
-│   └── DECISIONS.md
+│   ├── DECISIONS.md
+│   └── RECOVERY_HOOK_MACHINE.md
+├── packets/
+│   ├── iotex-btc-service-lead.md
+│   ├── iotex-btc-tail-watch.md
+│   └── iotex-ciotx-venues.md
 └── scripts/
-    └── case-refresh
+    ├── case-refresh
+    └── validate-case
 ```
 
 ## Local Preview
@@ -106,6 +123,14 @@ Use `docs/CASE_REFRESH_WORKFLOW.md` for case refreshes. A refresh validates the 
 7. Commit and push to GitHub Pages.
 
 Material-delta gate: do not commit if the only observed change is a volatile aggregate counter on a high-volume service-like address, such as transaction count, lifetime funded volume, or crawler-derived cluster size. Commit only when the change affects recovery actionability: stolen-tail movement, balance/state change on a tracked branch, blacklist/freeze/venue status, stronger or weaker attribution, new landing address, disproven claim, score/action change, or a new source needed for the case.
+
+Run the local case validator before committing:
+
+```bash
+scripts/validate-case
+```
+
+The validator rejects broken dates, missing source references, missing recovery hooks, and unbounded churn-only BTC service tx sources.
 
 ## Data Safety
 

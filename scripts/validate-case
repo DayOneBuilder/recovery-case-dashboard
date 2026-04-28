@@ -1,0 +1,182 @@
+#!/usr/bin/env node
+"use strict";
+
+const fs = require("fs");
+const path = require("path");
+const vm = require("vm");
+
+const repoRoot = path.resolve(__dirname, "..");
+const registryPath = path.join(repoRoot, "config", "cases.json");
+
+function fail(message) {
+  console.error(`validate-case: ${message}`);
+  process.exitCode = 1;
+}
+
+function loadCaseData(filePath) {
+  const code = fs.readFileSync(filePath, "utf8");
+  const context = { window: {} };
+  vm.createContext(context);
+  vm.runInContext(code, context, { filename: filePath });
+  return context.window.RECOVERY_CASE;
+}
+
+function asArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function checkRefs(section, owner, refs, sourceIds) {
+  for (const ref of asArray(refs)) {
+    if (!sourceIds.has(ref)) {
+      fail(`${section} '${owner}' references missing source '${ref}'`);
+    }
+  }
+}
+
+function validateCase(caseId, caseConfig) {
+  const dataFile = path.join(repoRoot, caseConfig.dataFile);
+  const data = loadCaseData(dataFile);
+
+  if (!data || typeof data !== "object") {
+    fail(`${caseId}: window.RECOVERY_CASE missing`);
+    return;
+  }
+
+  if (data.id !== caseId)
+    fail(`${caseId}: data id '${data.id}' does not match registry id`);
+  if (data.schemaVersion !== "2.0")
+    fail(`${caseId}: expected schemaVersion 2.0`);
+
+  const lastReview = data.case?.lastReview;
+  const nextReview = data.case?.nextReview;
+  if (!lastReview || !nextReview)
+    fail(`${caseId}: case.lastReview and case.nextReview are required`);
+  if (lastReview && nextReview && nextReview < lastReview) {
+    fail(
+      `${caseId}: nextReview ${nextReview} is before lastReview ${lastReview}`,
+    );
+  }
+
+  const sourceIds = new Set();
+  for (const source of asArray(data.sources)) {
+    if (!source.id) fail(`${caseId}: source without id`);
+    if (sourceIds.has(source.id))
+      fail(`${caseId}: duplicate source id '${source.id}'`);
+    sourceIds.add(source.id);
+    if (!/^https?:\/\//.test(source.url || ""))
+      fail(`${caseId}: source '${source.id}' has non-http URL`);
+    if (/^btc-service-touch-tx-\d+$/.test(source.id)) {
+      fail(
+        `${caseId}: churn-only source '${source.id}' should not be committed as a standalone source`,
+      );
+    }
+  }
+
+  const packetIds = new Set(
+    asArray(data.recoveryPackets).map((packet) => packet.id),
+  );
+  const authorityIds = new Set(
+    asArray(data.authorities).map((authority) => authority.id),
+  );
+
+  for (const opportunity of asArray(data.recoveryOpportunities)) {
+    if (!opportunity.id) fail(`${caseId}: recovery opportunity missing id`);
+    if (
+      typeof opportunity.score !== "number" ||
+      opportunity.score < 0 ||
+      opportunity.score > 100
+    ) {
+      fail(`${caseId}: opportunity '${opportunity.id}' has invalid score`);
+    }
+    if (!packetIds.has(opportunity.packetRef)) {
+      fail(
+        `${caseId}: opportunity '${opportunity.id}' references missing packet '${opportunity.packetRef}'`,
+      );
+    }
+    for (const ref of asArray(opportunity.authorityRefs)) {
+      if (!authorityIds.has(ref))
+        fail(
+          `${caseId}: opportunity '${opportunity.id}' references missing authority '${ref}'`,
+        );
+    }
+    checkRefs(
+      "opportunity",
+      opportunity.id,
+      opportunity.evidenceRefs,
+      sourceIds,
+    );
+  }
+
+  for (const authority of asArray(data.authorities)) {
+    checkRefs("authority", authority.id, authority.evidenceRefs, sourceIds);
+  }
+
+  for (const packet of asArray(data.recoveryPackets)) {
+    checkRefs("packet", packet.id, packet.evidenceRefs, sourceIds);
+    if (packet.packetFile) {
+      if (
+        typeof packet.packetFile !== "string" ||
+        packet.packetFile.includes("://") ||
+        packet.packetFile.startsWith("/") ||
+        packet.packetFile.includes("..")
+      ) {
+        fail(`${caseId}: packet '${packet.id}' has unsafe packetFile`);
+      } else if (!fs.existsSync(path.join(repoRoot, packet.packetFile))) {
+        fail(
+          `${caseId}: packet '${packet.id}' file does not exist: ${packet.packetFile}`,
+        );
+      }
+    }
+  }
+
+  for (const location of asArray(data.fundLocations)) {
+    checkRefs("fundLocation", location.id, location.evidenceRefs, sourceIds);
+  }
+
+  for (const workstream of asArray(data.workstreams)) {
+    checkRefs("workstream", workstream.id, workstream.evidenceRefs, sourceIds);
+    for (const [name, value] of Object.entries(workstream.scores || {})) {
+      if (typeof value !== "number" || value < 0 || value > 100) {
+        fail(
+          `${caseId}: workstream '${workstream.id}' score '${name}' is invalid`,
+        );
+      }
+    }
+  }
+
+  for (const [graphName, graph] of Object.entries(data.visuals || {})) {
+    const nodeNames = new Set(asArray(graph.nodes).map((node) => node.name));
+    for (const link of asArray(graph.links)) {
+      if (!nodeNames.has(link.source))
+        fail(`${caseId}: ${graphName} link missing source '${link.source}'`);
+      if (!nodeNames.has(link.target))
+        fail(`${caseId}: ${graphName} link missing target '${link.target}'`);
+    }
+  }
+
+  if (asArray(data.recoveryOpportunities).length === 0)
+    fail(`${caseId}: no recovery opportunities defined`);
+  if (asArray(data.recoveryPackets).length === 0)
+    fail(`${caseId}: no recovery packets defined`);
+  if (asArray(data.authorities).length === 0)
+    fail(`${caseId}: no authorities defined`);
+}
+
+const registry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
+const requestedId = process.argv[2] || registry.defaultCaseId;
+const cases = asArray(registry.cases);
+const selected = cases.filter(
+  (entry) => !requestedId || entry.id === requestedId,
+);
+
+if (!selected.length) {
+  fail(`unknown case '${requestedId}'`);
+} else {
+  for (const entry of selected) validateCase(entry.id, entry);
+}
+
+if (!process.exitCode) {
+  console.log(
+    `validate-case: OK (${selected.map((entry) => entry.id).join(", ")})`,
+  );
+}

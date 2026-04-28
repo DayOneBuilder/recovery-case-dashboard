@@ -7,6 +7,7 @@ Use this workflow when refreshing an existing recovery case. The goal is to vali
 - Case id from `config/cases.json`.
 - Current case data file, for example `data/iotex-iotube.js`.
 - Existing dashboard facts: stolen assets, fund locations, classifications, priority actions, workstreams, timeline, notes, and sources.
+- Recovery-hook facts: `recoveryOpportunities`, `authorities`, and `recoveryPackets`.
 - Current public sources and explorer views needed to validate the existing claims.
 
 ## Refresh Rules
@@ -18,6 +19,7 @@ Use this workflow when refreshing an existing recovery case. The goal is to vali
 5. Preserve the distinction between `confirmed-stolen-path`, `investigative-lead`, and `context`. Do not promote a lead without direct supporting evidence.
 6. Keep public-mode safety: do not add private victim communications, sealed legal process, API keys, or sensitive unreleased attribution.
 7. Prefer source-specific updates over broad rewrites. A one-line timeline delta is better than a rewritten case narrative when only one fact changed.
+8. Optimize for recovery hooks, not activity volume. A useful update changes who can act, what packet should be sent, what value is live, or why a previous claim is now wrong.
 
 ## Material Delta Gate
 
@@ -27,6 +29,7 @@ Do not edit or commit the case when the only observed change is volatile backgro
 - Lifetime funded volume changed on a service-like BTC cluster.
 - Crawler-derived cluster size changed without a new stolen-tail link.
 - Explorer formatting, labels, or rendering changed without a factual case delta.
+- Repeated internal churn on a service-like BTC cluster without a new venue, new stolen-tail linkage, or stronger attribution.
 
 Commit only when the change can affect recovery work:
 
@@ -36,6 +39,7 @@ Commit only when the change can affect recovery work:
 - Attribution confidence changes because a source, label, or direct linkage changed.
 - A current claim is disproven or becomes stale enough to lower confidence.
 - A priority action, branch score, timeline event, or source list must change because of the new fact.
+- A recovery opportunity, authority, or evidence packet changes because a new action path appeared or disappeared.
 
 ## Procedure
 
@@ -45,6 +49,7 @@ Commit only when the change can affect recovery work:
    - Top summary values.
    - Each `fundLocations` row.
    - Priority actions and workstream next actions.
+   - Recovery opportunities, authorities, and packet statuses.
    - Flow/evidence graph claims that depend on balances, services, or venue labels.
    - Timeline items and source references.
 3. Re-check only the sources needed to validate those baseline claims.
@@ -54,9 +59,9 @@ Commit only when the change can affect recovery work:
    - `new-delta`: add a focused timeline/source/action entry.
    - `stale-or-unverified`: lower confidence, add a caveat, or create a next action.
    - `disproven`: correct the claim and preserve a short explanation in notes or timeline.
-5. Update the data file only for changed facts and their dependent summaries.
+5. Update the data file only for changed facts and their dependent summaries. Do not add one source per high-volume service churn transaction.
 6. Set `case.lastReview` to the refresh date. Adjust `case.nextReview` only if the review cadence changed.
-7. Verify the static page renders after the data update.
+7. Run `scripts/validate-case` and verify the static page renders after the data update.
 8. Produce a concise refresh summary with:
    - Case id and review date.
    - Sources checked.
@@ -68,9 +73,12 @@ Commit only when the change can affect recovery work:
 
 For scheduled OpenClaw isolated cron jobs, return the refresh summary as plain text and let the cron runner deliver it via `announce`. Do not call Slack or the generic message tool from inside the scheduled cron agent turn. Direct Slack sending is only for the manual fallback path in `scripts/case-refresh`, and that path must use a minimal message call without blocks or interactive fields.
 
+The scheduled agent must always return a visible summary, even when nothing changed. Do not return `NO_REPLY` from scheduled cron runs because `NO_REPLY` is treated as silent delivery.
+
 ## Non-Goals
 
 - Do not rebuild the case from scratch.
 - Do not add a backend, package manager, build step, or live crawler.
 - Do not touch unrelated UI files for a data-only refresh.
 - Do not infer exchange, mixer, or owner identity from a service-like pattern alone.
+- Do not expand a case into broad re-research unless a specific recovery hook needs verification.
