@@ -165,6 +165,7 @@ scripts/generate-outreach --list
 scripts/generate-outreach ciotx-iotex-status-request --force
 scripts/generate-outreach iotex-iotube ciotx-iotex-status-request --stdout
 scripts/generate-approval-request iotex-iotube btc-service-attribution-question
+scripts/check-recovery-mailbox --case iotex-iotube
 scripts/record-outreach-reply iotex-iotube ciotx-iotex-status-request --classification replied --from sender@example.com --subject "Re: ..." --summary "..."
 ```
 
@@ -175,6 +176,8 @@ Evidence packets are linked through `packet.html?file=...` instead of raw markdo
 Approval requests are Slack-ready text only. They include the case, recipient route, reason, value at stake, tracked dashboard/packet/draft links, and explicit `approve ...` / `reject ...` text decisions. They do not send email or Slack by themselves.
 
 Replies are recorded with `scripts/record-outreach-reply`. The allowed reply classifications are `replied`, `needs_more_evidence`, `already_handled`, `actionable`, `rejected`, `bounty_discussion`, and `wrong_route`. The script appends to `outreach/ledger/` and never sends a response automatically.
+
+Mailbox scans use `scripts/check-recovery-mailbox`. It logs into `ben@dayonebuilder.online` through the local IMAP secrets, inspects recent INBOX messages read-only, and prints recovery-related candidates for the agent to classify. It does not archive, mark read, reply, or send.
 
 ## New Case Discovery
 

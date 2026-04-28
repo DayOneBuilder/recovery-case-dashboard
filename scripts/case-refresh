@@ -87,6 +87,11 @@ def require_case_string(case_id: str, case: dict[str, Any], field: str) -> str:
     return value.strip()
 
 
+def optional_case_string(case: dict[str, Any], field: str) -> str:
+    value = case.get(field)
+    return value.strip() if isinstance(value, str) else ""
+
+
 def resolve_repo_path(case_id: str, relative_path: str, field: str) -> Path:
     path = (REPO_ROOT / relative_path).resolve()
     try:
@@ -172,15 +177,15 @@ def build_refresh_prompt(case_id: str, case: dict[str, Any], *, allow_direct_not
     workflow_raw = require_case_string(case_id, case, "refreshWorkflow")
     notify_channel = require_case_string(case_id, case, "notifyChannel")
     notify_target = require_case_string(case_id, case, "notifyTarget")
-    notify_thread_id = require_case_string(case_id, case, "notifyThreadId")
+    notify_thread_id = optional_case_string(case, "notifyThreadId")
 
     data_file = resolve_repo_path(case_id, data_file_raw, "dataFile")
     workflow_file = resolve_repo_path(case_id, workflow_raw, "refreshWorkflow")
     readme_file = REPO_ROOT / "README.md"
 
     direct_delivery_rules = (
-        f"- Direct fallback Slack send is explicitly allowed for this run. After validation, send a concise update via the message tool to channel={notify_channel}, target={notify_target}, threadId={notify_thread_id}.\n"
-        "- When using the message tool, pass only action=send, channel=slack, target, threadId, and message. Do not set blocks, interactive, buttons, or other optional Slack fields.\n"
+        f"- Direct fallback Slack send is explicitly allowed for this run. After validation, send a concise update via the message tool to channel={notify_channel}, target={notify_target}{', threadId=' + notify_thread_id if notify_thread_id else ' at channel root'}.\n"
+        "- When using the message tool, pass only action=send, channel=slack, target, message, and threadId if configured. Do not set blocks, interactive, buttons, or other optional Slack fields.\n"
         "- After sending the Slack message, return exactly NO_REPLY.\n"
         if allow_direct_notify
         else
@@ -202,10 +207,13 @@ def build_refresh_prompt(case_id: str, case: dict[str, Any], *, allow_direct_not
         "- outreach/ holds queues, templates, and drafts.\n"
         "- outreach/ledger/ holds sent/reply state and must be checked before any outreach recommendation.\n"
         "- scripts/generate-outreach writes drafts only; it never sends email.\n"
+        "- scripts/check-recovery-mailbox scans ben@dayonebuilder.online read-only for recovery-related replies.\n"
+        "- scripts/record-outreach-reply records reply summaries and never sends a response.\n"
         "- scripts/refresh-case and scripts/case-refresh trigger refreshes.\n"
         "- scripts/validate-case is mandatory after any file edit.\n\n"
         "Rules:\n"
         "- Read the workflow file first, then README and the case data file.\n"
+        f"- Run scripts/check-recovery-mailbox --case {case_id} --json. If it finds candidate replies, inspect only enough of the candidate to classify it and extract public-safe substance.\n"
         "- Check only important recovery deltas: balance changed; freeze or blacklist status changed; CEX, bridge, issuer, or venue touchpoint appeared; opportunity became stronger or died; a new outreach draft is needed; or a reply arrived.\n"
         "- Do not run broad general research each cycle.\n"
         "- Check outreach/ledger before recommending outreach. IoTeX CIOTX is already sent_manual; do not recommend a follow-up unless there is a reply or explicit operator approval.\n"
@@ -218,6 +226,8 @@ def build_refresh_prompt(case_id: str, case: dict[str, Any], *, allow_direct_not
         "- If an outreach item changes, regenerate its draft with scripts/generate-outreach <outreach-id> --force.\n"
         "- Never send external outreach, follow-ups, venue reports, or email replies automatically. Prepare drafts and report what needs user approval.\n"
         "- If a reply arrived, do not answer it. Save a summary in outreach/ledger, classify it, update dashboard fields only if actionability changed, and propose the next step.\n"
+        "- Reply classifications must be one of: replied, needs_more_evidence, already_handled, actionable, rejected, bounty_discussion, wrong_route.\n"
+        "- If a reply contains substantive public-safe information, update the dashboard/outreachQueue/opportunities to reflect only that information. Do not publish private raw email text or private legal/compliance details.\n"
         "- If a new outreach draft is needed, generate the draft and approval request, then wait for approve/reject. Only an approved operator decision can authorize sending.\n"
         "- If material changes are confirmed, update only the necessary parts of the case file and keep the existing schema and public-claim boundaries intact.\n"
         "- After edits, run scripts/validate-case and a lightweight sanity check so the case JS still parses and exposes window.RECOVERY_CASE.\n"

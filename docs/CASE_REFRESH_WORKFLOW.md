@@ -57,19 +57,21 @@ Commit only when the change can affect recovery work:
    - Flow/evidence graph claims that depend on balances, services, or venue labels.
    - Timeline items and source references.
 3. Re-check only the sources needed to validate those baseline claims.
-4. Classify the result for each claim:
+4. Scan the mailbox read-only with `scripts/check-recovery-mailbox --case <case-id> --json`; use the result only to detect possible replies to already-approved outreach.
+5. Classify the result for each claim:
    - `unchanged`: no data edit, but it may be mentioned in the refresh note.
    - `changed`: update the relevant case fields and source refs.
    - `new-delta`: add a focused timeline/source/action entry.
    - `stale-or-unverified`: lower confidence, add a caveat, or create a next action.
    - `disproven`: correct the claim and preserve a short explanation in notes or timeline.
-5. Update the data file only for changed facts and their dependent summaries. Do not add one source per high-volume service churn transaction.
-6. If an outreach item, contact route, packet, or reward-protection wording changes, regenerate affected drafts with `scripts/generate-outreach <outreach-id> --force`.
-7. If a new outreach draft is needed, generate the approval text with `scripts/generate-approval-request <case-id> <outreach-id> --write`. Do not send the underlying email.
-8. If a reply arrived, record it with `scripts/record-outreach-reply` and classify it as one of: `replied`, `needs_more_evidence`, `already_handled`, `actionable`, `rejected`, `bounty_discussion`, or `wrong_route`. Do not answer the reply automatically.
-9. Set `case.lastReview` to the refresh date. Adjust `case.nextReview` only if the review cadence changed.
-10. Run `scripts/validate-case` and verify the static page renders after the data update.
-11. Produce a concise refresh summary with:
+6. Update the data file only for changed facts and their dependent summaries. Do not add one source per high-volume service churn transaction.
+7. If an outreach item, contact route, packet, or reward-protection wording changes, regenerate affected drafts with `scripts/generate-outreach <outreach-id> --force`.
+8. If a new outreach draft is needed, generate the approval text with `scripts/generate-approval-request <case-id> <outreach-id> --write`. Do not send the underlying email.
+9. If a reply arrived, record it with `scripts/record-outreach-reply` and classify it as one of: `replied`, `needs_more_evidence`, `already_handled`, `actionable`, `rejected`, `bounty_discussion`, or `wrong_route`. Do not answer the reply automatically.
+10. If the reply contains substantive public-safe information, update dashboard/outreachQueue/opportunities immediately with only that information. Do not publish raw private email text.
+11. Set `case.lastReview` to the refresh date. Adjust `case.nextReview` only if the review cadence changed.
+12. Run `scripts/validate-case` and verify the static page renders after the data update.
+13. Produce a concise refresh summary with:
    - Case id and review date.
    - Sources checked.
    - Deltas applied.

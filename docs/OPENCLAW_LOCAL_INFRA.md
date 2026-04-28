@@ -9,8 +9,9 @@ Checked on 2026-04-28 UTC after cloning the project onto this machine.
 - Default OpenClaw model: `openai-codex/gpt-5.4` with default thinking `xhigh`.
 - Configured Slack mode: Socket Mode.
 - Slack bot probe passes for bot `molt3` in team `Yauheni`.
-- Allowlisted Slack channel in OpenClaw config: `C0APHKX5LVA` (`autobuilder` in gateway logs).
-- Project registry notification target: `C0AKB50Q12P`, thread `1777022743.951349`.
+- Allowlisted Slack channels in OpenClaw config: `C0APHKX5LVA` (`autobuilder`) and `C0AKB50Q12P` (`general`).
+- Project registry notification target: `C0AKB50Q12P` (`#general`), no thread.
+- Slack bot `molt3` was not a member of `#general` when checked. `conversations.join` failed with `missing_scope`, so invite the bot to `#general` if cron delivery fails.
 - OpenClaw cron store: `~/.openclaw/cron/jobs.json`.
 - Current OpenClaw cron jobs: none. `openclaw cron list --json` returned an empty `jobs` list.
 - Gateway logs: `journalctl --user -u openclaw-gateway.service`.
@@ -27,7 +28,7 @@ openclaw cron add \
   --every 3h \
   --session isolated \
   --message "$(scripts/case-refresh --print-cron-message iotex-iotube)" \
-  --model "openai-codex/gpt-5.4" \
+  --model "openai-codex/gpt-5.3-codex-spark" \
   --thinking xhigh \
   --announce \
   --channel slack \
@@ -50,8 +51,7 @@ The mailbox auth probe in `~/.openclaw/workspace/assets/dayonebuilder-mail-auth-
 
 ## Recovery Project Implications
 
-- The expected 3-hour OpenClaw cron job is not currently installed on this machine.
-- The configured Slack target in `config/cases.json` is not the same as the only allowlisted Slack channel visible in OpenClaw config. Verify `C0AKB50Q12P` before enabling announce delivery.
+- The expected 3-hour OpenClaw cron job is installed on this machine only after `openclaw cron list --all --json` shows `Recovery case refresh: iotex-iotube`.
 - `scripts/generate-outreach` only writes drafts. It does not send email.
 - `scripts/generate-approval-request` creates the operator approval message.
 - `scripts/record-outreach-reply` records replies in `outreach/ledger/` and never sends a response.

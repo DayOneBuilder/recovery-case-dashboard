@@ -1,0 +1,260 @@
+#!/usr/bin/env python3
+"""Read-only mailbox scan for recovery-case replies."""
+
+from __future__ import annotations
+
+import argparse
+import email
+import imaplib
+import json
+import os
+import re
+from email.header import decode_header, make_header
+from pathlib import Path
+from typing import Any
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+REGISTRY_PATH = REPO_ROOT / "config" / "cases.json"
+SECRETS_PATH = Path.home() / ".secrets" / "ben-mail.env"
+DEFAULT_LIMIT = 50
+
+
+def fail(message: str) -> None:
+    print(f"check-recovery-mailbox: {message}", file=os.sys.stderr)
+    raise SystemExit(1)
+
+
+def decode_header_value(value: str | None) -> str:
+    if not value:
+        return ""
+    try:
+        return str(make_header(decode_header(value)))
+    except Exception:
+        return value
+
+
+def load_env_file(path: Path) -> dict[str, str]:
+    if not path.exists():
+        fail(f"missing mailbox secrets: {path}")
+    env: dict[str, str] = {}
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[7:]
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        value = value.strip()
+        if (value.startswith('"') and value.endswith('"')) or (
+            value.startswith("'") and value.endswith("'")
+        ):
+            value = value[1:-1]
+        env[key.strip()] = value
+    return env
+
+
+def as_array(value: Any) -> list[Any]:
+    return value if isinstance(value, list) else []
+
+
+def load_registry() -> dict[str, Any]:
+    return json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
+
+
+def read_case_text(case_id: str) -> tuple[dict[str, Any], str]:
+    registry = load_registry()
+    cases = {case["id"]: case for case in as_array(registry.get("cases"))}
+    case_config = cases.get(case_id)
+    if not case_config:
+        fail(f"unknown case id: {case_id}")
+    data_file = REPO_ROOT / case_config["dataFile"]
+    return case_config, data_file.read_text(encoding="utf-8")
+
+
+def build_terms(case_id: str, case_text: str) -> list[str]:
+    terms = {
+        case_id,
+        case_id.replace("-", " "),
+        "recovery lead",
+        "public-source recovery",
+    }
+
+    for pattern in [
+        r"\bIoTeX\b",
+        r"\bioTube\b",
+        r"\bCIOTX\b",
+        r"\bFoomCash\b",
+        r"\bYieldBlox\b",
+        r"\bKelpDAO\b",
+        r"\bTether\b",
+        r"\bStellar\b",
+    ]:
+        if re.search(pattern, case_text, re.I):
+            terms.add(pattern.replace(r"\b", "").replace("\\", ""))
+
+    for subject in re.findall(r"Public-source recovery lead:[^\n]+", case_text, re.I):
+        terms.add(subject)
+
+    return sorted({term.lower() for term in terms if len(term.strip()) >= 4})
+
+
+def body_snippet(message: email.message.Message, max_chars: int = 800) -> str:
+    text = ""
+    html = ""
+    if message.is_multipart():
+        for part in message.walk():
+            content_type = (part.get_content_type() or "").lower()
+            disposition = str(part.get("Content-Disposition", "")).lower()
+            if "attachment" in disposition:
+                continue
+            if content_type not in {"text/plain", "text/html"}:
+                continue
+            payload = part.get_payload(decode=True) or b""
+            charset = part.get_content_charset() or "utf-8"
+            body = payload.decode(charset, errors="replace")
+            if content_type == "text/plain" and len(body) > len(text):
+                text = body
+            elif content_type == "text/html" and len(body) > len(html):
+                html = body
+    else:
+        payload = message.get_payload(decode=True) or b""
+        charset = message.get_content_charset() or "utf-8"
+        text = payload.decode(charset, errors="replace")
+
+    body = text or html
+    body = re.sub(r"<[^>]+>", " ", body)
+    body = " ".join(body.replace("\r", " ").replace("\n", " ").split())
+    return body[:max_chars]
+
+
+def classify_candidate(subject: str, sender: str, snippet: str, terms: list[str]) -> tuple[bool, list[str]]:
+    haystack = f"{subject}\n{sender}\n{snippet}".lower()
+    matched = [term for term in terms if term in haystack]
+    if matched:
+        return True, matched
+    if subject.lower().startswith("re:") and any(term in subject.lower() for term in ["recovery", "iotex", "iotube", "ciotx"]):
+        return True, ["reply-subject"]
+    return False, []
+
+
+def fetch_recent(mail: imaplib.IMAP4_SSL, limit: int) -> list[tuple[str, email.message.Message, set[str]]]:
+    status, data = mail.uid("SEARCH", None, "ALL")
+    if status != "OK":
+        fail("failed to search INBOX")
+    raw_uids = data[0].split() if data and data[0] else []
+    uids = [uid.decode("ascii") for uid in raw_uids][-limit:]
+
+    messages: list[tuple[str, email.message.Message, set[str]]] = []
+    for uid in reversed(uids):
+        status, msgdata = mail.uid("FETCH", uid, "(FLAGS BODY.PEEK[])")
+        if status != "OK":
+            continue
+        flags: set[str] = set()
+        raw = b""
+        for part in msgdata or []:
+            if isinstance(part, tuple):
+                head, body = part
+                if head:
+                    flags = {
+                        item.decode() if isinstance(item, bytes) else str(item)
+                        for item in imaplib.ParseFlags(head)
+                    }
+                if body:
+                    raw = body
+        if raw:
+            messages.append((uid, email.message_from_bytes(raw), flags))
+    return messages
+
+
+def render_markdown(result: dict[str, Any]) -> str:
+    lines = [
+        "# Recovery Mailbox Scan",
+        "",
+        f"- Mailbox: {result['mailbox']}",
+        f"- Case: {result['caseId']}",
+        f"- Messages scanned: {result['messagesScanned']}",
+        f"- Candidate replies: {len(result['candidates'])}",
+        "",
+    ]
+    if not result["candidates"]:
+        lines.append("No recovery-related replies found in INBOX.")
+        return "\n".join(lines)
+
+    for item in result["candidates"]:
+        flags = "unread" if item["unread"] else "seen"
+        lines.extend(
+            [
+                f"## UID {item['uid']} ({flags})",
+                f"- From: {item['from']}",
+                f"- Subject: {item['subject']}",
+                f"- Date: {item['date']}",
+                f"- Matched: {', '.join(item['matchedTerms'])}",
+                f"- Snippet: {item['snippet']}",
+                "",
+            ]
+        )
+    return "\n".join(lines).rstrip()
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--case", default=None, help="Case id; defaults to config defaultCaseId")
+    parser.add_argument("--limit", type=int, default=DEFAULT_LIMIT, help="Recent INBOX messages to inspect")
+    parser.add_argument("--json", action="store_true", help="Output JSON")
+    args = parser.parse_args()
+
+    registry = load_registry()
+    case_id = args.case or registry.get("defaultCaseId") or "iotex-iotube"
+    _, case_text = read_case_text(case_id)
+    terms = build_terms(case_id, case_text)
+    env = load_env_file(SECRETS_PATH)
+
+    mail = imaplib.IMAP4_SSL(env["IMAP_HOST"], int(env["IMAP_PORT"]))
+    mail.login(env["MAILBOX_EMAIL"], env["MAILBOX_PASSWORD"])
+    status, _ = mail.select("INBOX", readonly=True)
+    if status != "OK":
+      fail("failed to select INBOX")
+
+    messages = fetch_recent(mail, max(1, args.limit))
+    candidates = []
+    for uid, message, flags in messages:
+        subject = decode_header_value(message.get("Subject"))
+        sender = decode_header_value(message.get("From"))
+        snippet = body_snippet(message)
+        matched, matched_terms = classify_candidate(subject, sender, snippet, terms)
+        if not matched:
+            continue
+        candidates.append(
+            {
+                "uid": uid,
+                "from": sender,
+                "subject": subject,
+                "date": decode_header_value(message.get("Date")),
+                "unread": "\\Seen" not in flags,
+                "matchedTerms": matched_terms,
+                "snippet": snippet,
+            }
+        )
+
+    mail.logout()
+
+    result = {
+        "caseId": case_id,
+        "mailbox": env["MAILBOX_EMAIL"],
+        "messagesScanned": len(messages),
+        "candidateCount": len(candidates),
+        "candidates": candidates,
+    }
+
+    if args.json:
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+    else:
+        print(render_markdown(result))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
