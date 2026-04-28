@@ -9,7 +9,7 @@
       "refreshWorkflow": "docs/CASE_REFRESH_WORKFLOW.md",
       "cronJobName": "Recovery case refresh: iotex-iotube",
       "notifyChannel": "slack",
-      "notifyTarget": "C0AKB50Q12P",
+      "notifyTarget": "C0APHKX5LVA",
       "notifyThreadId": ""
     }
   ]
