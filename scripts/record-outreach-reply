@@ -103,7 +103,7 @@ function safeRelativePath(value) {
   return rel;
 }
 
-function updateCaseDataStatus(caseConfig, outreachId, classification) {
+function buildCaseDataStatusUpdate(caseConfig, outreachId, classification) {
   const dataPath = path.join(repoRoot, caseConfig.dataFile);
   const source = fs.readFileSync(dataPath, "utf8");
   const idNeedle = `id: "${outreachId}"`;
@@ -117,10 +117,28 @@ function updateCaseDataStatus(caseConfig, outreachId, classification) {
   const before = source.slice(0, idIndex);
   const itemBlock = source.slice(idIndex, endIndex);
   const after = source.slice(endIndex);
+  const statusMatch = itemBlock.match(/status: "([^"]+)"/);
+  if (!statusMatch) fail(`could not update status for outreach '${outreachId}'`);
+  if (statusMatch[1] === classification) return null;
   const updatedBlock = itemBlock.replace(/status: "([^"]+)"/, `status: "${classification}"`);
-  if (updatedBlock === itemBlock) fail(`could not update status for outreach '${outreachId}'`);
-  fs.writeFileSync(dataPath, before + updatedBlock + after, "utf8");
-  return caseConfig.dataFile;
+  return {
+    path: dataPath,
+    relativePath: caseConfig.dataFile,
+    content: before + updatedBlock + after,
+  };
+}
+
+function sameReply(existing, candidate) {
+  if (!existing || existing.kind !== "reply") return false;
+  if (existing.outreachId !== candidate.outreachId) return false;
+  if (candidate.messageId && existing.messageId === candidate.messageId) return true;
+  if (candidate.messageId) return false;
+  return (
+    existing.receivedAt === candidate.receivedAt &&
+    existing.from === candidate.from &&
+    existing.subject === candidate.subject &&
+    existing.summary === candidate.summary
+  );
 }
 
 const args = process.argv.slice(2);
@@ -179,14 +197,50 @@ const entry = {
   autoReplySent: false,
 };
 
-ledger.items.push(entry);
-fs.mkdirSync(path.dirname(ledgerPath), { recursive: true });
-fs.writeFileSync(ledgerPath, `${JSON.stringify(ledger, null, 2)}\n`, "utf8");
-
 let updatedDataFile = "";
-if (parsed.flags.has("--update-case-data")) {
-  updatedDataFile = updateCaseDataStatus(caseConfig, outreachId, classification);
+const duplicate = ledger.items.find((item) => sameReply(item, entry));
+if (duplicate) {
+  const result = {
+    caseId,
+    outreachId,
+    classification: duplicate.status || classification,
+    duplicate: true,
+    ledger: path.relative(repoRoot, ledgerPath),
+    updatedDataFile: "",
+    autoReplySent: false,
+    slackSummary: [
+      `Reply already tracked: ${caseId} / ${outreachId}`,
+      `From: ${duplicate.from || sender}`,
+      `Classification: ${duplicate.status || classification}`,
+      `Summary: ${duplicate.summary || summary}`,
+      "No automatic reply was sent.",
+    ].join("\n"),
+  };
+  if (parsed.flags.has("--json")) {
+    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  } else {
+    process.stdout.write(`${result.slackSummary}\n`);
+    console.log(`Ledger: ${result.ledger}`);
+  }
+  process.exit(0);
 }
+
+let dataUpdate = null;
+if (parsed.flags.has("--update-case-data")) {
+  dataUpdate = buildCaseDataStatusUpdate(caseConfig, outreachId, classification);
+  updatedDataFile = dataUpdate ? dataUpdate.relativePath : "";
+}
+
+const nextLedger = {
+  ...ledger,
+  items: [...ledger.items, entry],
+};
+
+if (dataUpdate) {
+  fs.writeFileSync(dataUpdate.path, dataUpdate.content, "utf8");
+}
+fs.mkdirSync(path.dirname(ledgerPath), { recursive: true });
+fs.writeFileSync(ledgerPath, `${JSON.stringify(nextLedger, null, 2)}\n`, "utf8");
 
 const result = {
   caseId,

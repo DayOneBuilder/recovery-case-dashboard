@@ -66,8 +66,8 @@ Commit only when the change can affect recovery work:
    - `disproven`: correct the claim and preserve a short explanation in notes or timeline.
 6. Update the data file only for changed facts and their dependent summaries. Do not add one source per high-volume service churn transaction.
 7. If an outreach item, contact route, packet, or reward-protection wording changes, regenerate affected drafts with `scripts/generate-outreach <outreach-id> --force`.
-8. If a new outreach draft is needed, generate the approval text with `scripts/generate-approval-request <case-id> <outreach-id> --write`. Do not send the underlying email.
-9. If a reply arrived, record it with `scripts/record-outreach-reply` and classify it as one of: `replied`, `needs_more_evidence`, `already_handled`, `actionable`, `rejected`, `bounty_discussion`, or `wrong_route`. Do not answer the reply automatically.
+8. If a new outreach draft is needed, generate the approval text with `scripts/generate-approval-request <case-id> <outreach-id> --write`. Do not send the underlying email. Include the full generated approval text in the returned Slack summary so the operator sees the exact approve/reject commands and tracked dashboard/packet/draft links.
+9. If a reply arrived, record it with `scripts/record-outreach-reply` and classify it as one of: `replied`, `needs_more_evidence`, `already_handled`, `actionable`, `rejected`, `bounty_discussion`, or `wrong_route`. Pass the mailbox candidate `messageId` as `--message-id` so repeated read-only scans are idempotent. Do not answer the reply automatically.
 10. If the reply contains substantive public-safe information, update dashboard/outreachQueue/opportunities immediately with only that information. Do not publish raw private email text.
 11. Set `case.lastReview` to the refresh date. Adjust `case.nextReview` only if the review cadence changed.
 12. Run `scripts/validate-case` and verify the static page renders after the data update.
@@ -81,6 +81,8 @@ Commit only when the change can affect recovery work:
 ## Delivery
 
 For scheduled OpenClaw isolated cron jobs, return the refresh summary as plain text and let the cron runner deliver it via `announce`. Do not call Slack or the generic message tool from inside the scheduled cron agent turn. Direct Slack sending from the manual fallback path is disabled unless the operator runs `scripts/case-refresh --notify`.
+
+If the refresh creates or updates an outreach approval request, append an `Approval needed:` section to the plain-text summary and include the full generated approval text. A short bullet saying "approval generated" is not enough, because the cron runner only delivers the final agent response.
 
 The scheduled agent must always return a visible summary, even when nothing changed. Do not return `NO_REPLY` from scheduled cron runs because `NO_REPLY` is treated as silent delivery.
 

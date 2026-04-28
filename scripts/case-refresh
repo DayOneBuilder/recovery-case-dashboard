@@ -226,9 +226,11 @@ def build_refresh_prompt(case_id: str, case: dict[str, Any], *, allow_direct_not
         "- If an outreach item changes, regenerate its draft with scripts/generate-outreach <outreach-id> --force.\n"
         "- Never send external outreach, follow-ups, venue reports, or email replies automatically. Prepare drafts and report what needs user approval.\n"
         "- If a reply arrived, do not answer it. Save a summary in outreach/ledger, classify it, update dashboard fields only if actionability changed, and propose the next step.\n"
+        "- When recording a mailbox reply, pass the candidate messageId from scripts/check-recovery-mailbox as --message-id so repeated read-only scans do not duplicate ledger entries.\n"
         "- Reply classifications must be one of: replied, needs_more_evidence, already_handled, actionable, rejected, bounty_discussion, wrong_route.\n"
         "- If a reply contains substantive public-safe information, update the dashboard/outreachQueue/opportunities to reflect only that information. Do not publish private raw email text or private legal/compliance details.\n"
-        "- If a new outreach draft is needed, generate the draft and approval request, then wait for approve/reject. Only an approved operator decision can authorize sending.\n"
+        "- If a new outreach draft is needed, generate the draft and approval request with scripts/generate-approval-request <case-id> <outreach-id> --write, then wait for approve/reject. Only an approved operator decision can authorize sending.\n"
+        "- When an approval request is generated, include the full approval request text in the returned Slack summary after the short delta bullets. Do not omit the exact approve/reject text or tracked dashboard/packet/draft links.\n"
         "- If material changes are confirmed, update only the necessary parts of the case file and keep the existing schema and public-claim boundaries intact.\n"
         "- After edits, run scripts/validate-case and a lightweight sanity check so the case JS still parses and exposes window.RECOVERY_CASE.\n"
         f"- If repo files changed, run git status and commit with: Refresh case state: {case_id}. Do not push unless the operator explicitly approved pushing in this run.\n"
@@ -237,6 +239,7 @@ def build_refresh_prompt(case_id: str, case: dict[str, Any], *, allow_direct_not
         f"  1) first line exactly one of: Проверил {case_id}, изменений нет. OR Обновил {case_id}.\n"
         "  2) then 2-5 short bullets with the exact deltas or exact re-validation points\n"
         "  3) if a commit was created, include the short hash in the message\n"
+        "  4) if an approval request is needed, append an `Approval needed:` section containing the generated approval text, including approve/reject commands\n"
     )
 
 

@@ -140,6 +140,13 @@ def classify_candidate(subject: str, sender: str, snippet: str, terms: list[str]
     return False, []
 
 
+def mailbox_message_id(message: email.message.Message, mailbox: str, uid: str) -> str:
+    message_id = decode_header_value(message.get("Message-ID")).strip()
+    if message_id:
+        return message_id
+    return f"imap:{mailbox}:INBOX:{uid}"
+
+
 def fetch_recent(mail: imaplib.IMAP4_SSL, limit: int) -> list[tuple[str, email.message.Message, set[str]]]:
     status, data = mail.uid("SEARCH", None, "ALL")
     if status != "OK":
@@ -188,6 +195,7 @@ def render_markdown(result: dict[str, Any]) -> str:
         lines.extend(
             [
                 f"## UID {item['uid']} ({flags})",
+                f"- Message-ID: {item['messageId']}",
                 f"- From: {item['from']}",
                 f"- Subject: {item['subject']}",
                 f"- Date: {item['date']}",
@@ -230,6 +238,8 @@ def main() -> int:
         candidates.append(
             {
                 "uid": uid,
+                "messageId": mailbox_message_id(message, env["MAILBOX_EMAIL"], uid),
+                "inReplyTo": decode_header_value(message.get("In-Reply-To")),
                 "from": sender,
                 "subject": subject,
                 "date": decode_header_value(message.get("Date")),

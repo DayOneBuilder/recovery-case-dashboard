@@ -177,7 +177,7 @@ Approval requests are Slack-ready text only. They include the case, recipient ro
 
 Replies are recorded with `scripts/record-outreach-reply`. The allowed reply classifications are `replied`, `needs_more_evidence`, `already_handled`, `actionable`, `rejected`, `bounty_discussion`, and `wrong_route`. The script appends to `outreach/ledger/` and never sends a response automatically.
 
-Mailbox scans use `scripts/check-recovery-mailbox`. It logs into `ben@dayonebuilder.online` through the local IMAP secrets, inspects recent INBOX messages read-only, and prints recovery-related candidates for the agent to classify. It does not archive, mark read, reply, or send.
+Mailbox scans use `scripts/check-recovery-mailbox`. It logs into `ben@dayonebuilder.online` through the local IMAP secrets, inspects recent INBOX messages read-only, and prints recovery-related candidates for the agent to classify. It includes a stable `messageId` for reply deduplication. It does not archive, mark read, reply, or send.
 
 ## New Case Discovery
 
