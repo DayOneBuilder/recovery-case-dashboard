@@ -10,6 +10,7 @@ window.RECOVERY_CASE = {
     lastReview: "2026-04-28",
     nextReview: "2026-04-29",
     publicMode: true,
+    publicUrl: "https://dayonebuilder.online/recovery-case-dashboard/",
   },
   exploit: {
     title: "Exploit / theft",
@@ -132,6 +133,165 @@ window.RECOVERY_CASE = {
         "Keep every report split between confirmed stolen path and investigative lead.",
       target: "All public and vendor-facing updates",
       why: "The second-hop balance is mixed-use and the service-like cluster is unlabeled.",
+    },
+  ],
+  recoveryCommand: {
+    mode: "Human-approved outreach only",
+    externalAutoSend: false,
+    currentSignal: "Ask clarifying question",
+    currentRecommendation:
+      "Ask IoTeX whether the CIOTX branch is already frozen, preserved, settled, or still actionable before any venue-side outreach.",
+    rationale:
+      "The CIOTX branch has the clearest authority path, but an external researcher cannot verify private recovery status from public data.",
+    confidence: 78,
+    rewardPosition:
+      "Give value first, preserve a timestamped submission trail, and ask for standard researcher credit or reward only if the information materially contributes to recovery.",
+    escalationRules: [
+      {
+        id: "urgent-owner-ping",
+        label: "Urgent owner ping",
+        firesWhen:
+          "A live stolen balance is found at a freeze-capable issuer, identifiable venue, bridge operator, or victim-controlled recovery surface, and public status does not show it is already handled.",
+        action:
+          "Generate packet, ask the user to approve sending, then contact the victim/project owner first.",
+      },
+      {
+        id: "clarifying-question",
+        label: "Clarifying question",
+        firesWhen:
+          "The evidence is strong but private freeze, preservation, settlement, or case ownership status cannot be known from public sources.",
+        action:
+          "Ask the project owner to confirm the correct channel and whether the lead is already covered.",
+      },
+      {
+        id: "watch-only",
+        label: "Watch only",
+        firesWhen:
+          "Funds are live but there is no current freeze/venue/issuer action path, such as an unmoved BTC tail.",
+        action:
+          "Monitor for first spend or venue landing; do not send repetitive no-change emails.",
+      },
+    ],
+  },
+  contacts: [
+    {
+      id: "iotex-official-contact",
+      name: "IoTeX official contact route",
+      organization: "IoTeX",
+      role: "Victim/project owner",
+      priority: 1,
+      channelType: "Email / official route verification",
+      channel: "hello@iotex.io; verify route through iotex.io/verification",
+      status: "Use for routing question",
+      statusKey: "constrained",
+      confidence: 68,
+      permittedUse:
+        "Ask for the correct incident recovery channel, case/reference ID, and whether the CIOTX lead is already handled.",
+      notFor:
+        "Do not demand payment, imply custody of funds, or publish sensitive operational details before acknowledgement.",
+      nextAsk:
+        "Can IoTeX confirm whether 0xA467 and the venue-dependent CIOTX branch are frozen, preserved, settled, or still actionable?",
+      relatedOpportunityRefs: ["ciotx-authority-packet"],
+      sourceRefs: ["iotex-terms-contact", "iotex-verification"],
+    },
+    {
+      id: "venue-partner-route",
+      name: "Binance / Easybit / ChangeNow route",
+      organization: "Named venue / trading partner branch",
+      role: "Venue-side preservation authority",
+      priority: 2,
+      channelType: "Victim or counsel authorized process",
+      channel: "Do not cold-send detailed allegations without IoTeX authorization",
+      status: "Victim-gated",
+      statusKey: "offchain",
+      confidence: 60,
+      permittedUse:
+        "Prepare a packet IoTeX or counsel can forward to venue compliance.",
+      notFor:
+        "Do not ask venues for private account/KYC status as an unaffiliated third party.",
+      nextAsk:
+        "Ask IoTeX whether venue case IDs already exist and what public evidence can be added safely.",
+      relatedOpportunityRefs: ["ciotx-authority-packet"],
+      sourceRefs: ["iotex-month-review", "iotex-update-2"],
+    },
+    {
+      id: "analytics-vendor-route",
+      name: "Commercial blockchain analytics vendor",
+      organization: "Analytics / attribution vendor",
+      role: "Private label and owner-ID check",
+      priority: 3,
+      channelType: "Optional vendor escalation",
+      channel: "Victim team, counsel, or paid analytics account",
+      status: "Optional",
+      statusKey: "service",
+      confidence: 55,
+      permittedUse:
+        "Ask whether a service-like BTC cluster maps to a known operator without publishing an overclaim.",
+      notFor:
+        "Do not present unlabeled cluster activity as a named exchange deposit.",
+      nextAsk:
+        "Can the vendor identify bc1q7t4v as a known operator or rule it out?",
+      relatedOpportunityRefs: ["btc-service-owner-id"],
+      sourceRefs: ["btc-service-cluster", "btc-service-touch-tx"],
+    },
+  ],
+  outreachQueue: [
+    {
+      id: "ciotx-iotex-status-request",
+      opportunityRef: "ciotx-authority-packet",
+      contactRef: "iotex-official-contact",
+      packetRef: "packet-ciotx-venues",
+      status: "drafted",
+      priority: 1,
+      title: "IoTeX CIOTX status / preservation question",
+      valueAtStake: "76,448,785 CIOTX visible + 52.4M CIOTX venue-dependent",
+      whyContactNow:
+        "This is the strongest current hook and only IoTeX can confirm whether it is already frozen, preserved, settled, or still open.",
+      sendCondition:
+        "Send after the latest packet is regenerated and the user approves the exact wording.",
+      rewardProtection:
+        "State good-faith public-source research, provide actionable value, and request standard researcher credit/reward only if the information materially contributes to recovery.",
+      nextFollowUp: "2026-05-01",
+      latestDraft: "outreach/drafts/iotex-iotube-ciotx-iotex-status-request.md",
+      evidenceRefs: ["ciotx-a467", "iotex-month-review", "iotex-update-2"],
+    },
+    {
+      id: "btc-tail-movement-alert",
+      opportunityRef: "btc-tail-live-watch",
+      contactRef: "iotex-official-contact",
+      packetRef: "packet-btc-tail-watch",
+      status: "needs_more_evidence",
+      priority: 2,
+      title: "BTC tail first-spend alert",
+      valueAtStake: "22.863073 BTC visible",
+      whyContactNow:
+        "No outreach is useful while the original BTC tail is unchanged; outreach becomes useful on first spend or venue landing.",
+      sendCondition:
+        "Send only if a tracked BTC address moves and the next hop creates a venue, bridge, mixer, or consolidation lead.",
+      rewardProtection:
+        "Timestamp the alert and include exact before/after balances plus the first actionable next-hop classification.",
+      nextFollowUp: "On first movement",
+      latestDraft: "",
+      evidenceRefs: ["btc-12v7", "btc-16xus", "btc-1pn2", "btc-135o"],
+    },
+    {
+      id: "btc-service-attribution-question",
+      opportunityRef: "btc-service-owner-id",
+      contactRef: "analytics-vendor-route",
+      packetRef: "packet-btc-service-lead",
+      status: "drafted",
+      priority: 3,
+      title: "BTC service-like cluster attribution question",
+      valueAtStake: "0.75 BTC touch; attribution value only",
+      whyContactNow:
+        "A private analytics label could convert the branch into an owner-ID lead, but public evidence is not enough for a recovery claim.",
+      sendCondition:
+        "Send only to IoTeX or a trusted analytics vendor, with explicit caveats that this is not a named venue claim.",
+      rewardProtection:
+        "Frame as a narrow attribution question and preserve the caveat so a future reward claim is not weakened by overstatement.",
+      nextFollowUp: "After CIOTX status route is exhausted",
+      latestDraft: "outreach/drafts/iotex-iotube-btc-service-attribution-question.md",
+      evidenceRefs: ["btc-service-cluster", "btc-service-touch-tx"],
     },
   ],
   recoveryOpportunities: [
@@ -1024,6 +1184,16 @@ window.RECOVERY_CASE = {
       id: "iotex-update-2",
       label: "IoTeX update No.2",
       url: "https://blog.iotex.io/id/blog/iotube-bridge-incident-update-no-2-chain-resumed-recovery-underway/",
+    },
+    {
+      id: "iotex-terms-contact",
+      label: "IoTeX terms contact route",
+      url: "https://iotex.io/terms",
+    },
+    {
+      id: "iotex-verification",
+      label: "IoTeX official channel verification",
+      url: "https://iotex.io/verification",
     },
     {
       id: "eth-reserve-eoa",

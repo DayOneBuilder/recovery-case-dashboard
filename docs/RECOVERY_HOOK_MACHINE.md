@@ -33,7 +33,9 @@ case sources
   -> validate current balances / freeze / blacklist / movement state
   -> split value into tranches
   -> score recovery opportunities
+  -> decide urgent ping vs clarifying question vs watch-only
   -> generate authority-specific packets
+  -> generate human-approved outreach drafts
   -> QA the claim boundaries
   -> update dashboard only when actionability changes
 ```
@@ -62,6 +64,39 @@ The first screen should answer:
 6. When was this last verified?
 
 Charts are supporting evidence. They should not be the main product surface.
+
+## Outreach Decision
+
+The machine should interrupt the user only when it can say one of three things:
+
+- Urgent owner ping: there is a live balance or venue/issuer hook where a real actor may still preserve or recover value.
+- Clarifying question: the public evidence is strong, but the owner may already have frozen, preserved, or settled the branch privately.
+- Watch only: there is value or attribution relevance, but no current external action path exists.
+
+External auto-send is disabled. The system prepares packets and drafts, then the user approves the recipient and wording.
+
+## Contact Standard
+
+Every contact route must include:
+
+- Organization and role.
+- Channel or official route verification.
+- Permitted use.
+- "Do not use for" boundary.
+- Next ask.
+- Source references for the route or the public claim.
+
+Victim/project-owner contact comes before venue-side outreach unless a public bounty/safe-harbor program explicitly says otherwise.
+
+## Reward-Protection Language
+
+Every outreach draft should preserve the researcher position without becoming a threat or ransom:
+
+- Independent researcher acting in good faith.
+- Public-source analysis only.
+- No request for access to funds, systems, private data, or account information.
+- Value-first lead with an exact ask.
+- Request for standard researcher credit or reward only if the information materially contributes to recovery, preservation, enforcement action, or owner identification.
 
 ## Refresh Gate
 
@@ -95,3 +130,7 @@ Every packet should include:
 - Suggested owner for outreach.
 
 The public dashboard may describe packet status, but private emails, legal records, API keys, and non-public attribution stay out of `data/*.js`.
+
+## Generated Files
+
+`scripts/generate-outreach` converts `outreachQueue` entries into drafts in `outreach/drafts/`. Regenerate drafts after changing an opportunity, contact, packet, or reward-protection wording.

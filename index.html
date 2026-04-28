@@ -5,7 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Recovery Case Dashboard</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+    <link rel="preconnect" href="https://www.googletagmanager.com" />
     <link rel="stylesheet" href="./assets/styles.css" />
+    <!-- Google tag (gtag.js) -->
+    <script
+      async
+      src="https://www.googletagmanager.com/gtag/js?id=G-ZR415HX0B2"
+    ></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      gtag("js", new Date());
+      gtag("config", "G-ZR415HX0B2");
+    </script>
   </head>
   <body>
     <div class="shell">
@@ -35,6 +49,16 @@
           aria-label="Top recovery summary"
         ></section>
 
+        <section class="panel command-panel" aria-label="Recovery command center">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Recovery command center</p>
+              <h2>Should we ping someone now?</h2>
+            </div>
+          </div>
+          <div id="command-center" class="command-center"></div>
+        </section>
+
         <section
           class="panel opportunities-panel"
           aria-label="Top recovery opportunities"
@@ -46,6 +70,16 @@
             </div>
           </div>
           <div id="recovery-opportunities" class="opportunity-grid"></div>
+        </section>
+
+        <section class="panel outreach-panel" aria-label="Outreach queue">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Outreach queue</p>
+              <h2>Draft, approve, send, and follow up</h2>
+            </div>
+          </div>
+          <div id="outreach-queue" class="outreach-queue"></div>
         </section>
 
         <section class="two-column recovery-workbench">
@@ -62,11 +96,33 @@
           <article class="panel">
             <div class="panel-heading">
               <div>
+                <p class="eyebrow">Contacts</p>
+                <h2>Official routes and limits</h2>
+              </div>
+            </div>
+            <div id="contacts" class="contact-list"></div>
+          </article>
+        </section>
+
+        <section class="two-column recovery-workbench">
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
                 <p class="eyebrow">Evidence packets</p>
                 <h2>What must be sent, not just watched</h2>
               </div>
             </div>
             <div id="recovery-packets" class="packet-list"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Alert rules</p>
+                <h2>When the system should interrupt you</h2>
+              </div>
+            </div>
+            <div id="alert-rules" class="alert-rule-list"></div>
           </article>
         </section>
 

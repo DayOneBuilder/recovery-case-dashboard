@@ -129,3 +129,19 @@ Decision: repeated internal activity on a high-volume service-like cluster is no
 Reasoning: service churn can create many commits without increasing recovery probability. A refresh may mention unchanged or noisy checks in Slack, but it should not mutate case data unless the update changes actionability: new venue landing, balance/freeze status, stronger attribution, disproven claim, new authority, packet status, or score/action change.
 
 Implementation: `scripts/validate-case` rejects unbounded `btc-service-touch-tx-N` sources so the IoTeX case does not regress into a raw tx log.
+
+## 14. Human-Approved Outreach, Not Auto-Send
+
+Decision: the system may generate evidence packets and outreach drafts, but it must not automatically contact victims, issuers, venues, or analytics vendors.
+
+Reasoning: recovery outreach touches legal/compliance processes and researcher reputation. Automatic pings can become spam, overclaim an unresolved lead, or weaken reward positioning. The safer workflow is: generate packet, generate draft, validate claim boundaries, then let the user approve recipient and wording.
+
+Implementation: `recoveryCommand.externalAutoSend` is false, `outreachQueue` items carry send conditions and reward-protection wording, and `scripts/generate-outreach` writes drafts only.
+
+## 15. Google Analytics Is Required On Public Pages
+
+Decision: the public dashboard includes Google Analytics tag `G-ZR415HX0B2`.
+
+Reasoning: outreach links need basic visit telemetry so the user can tell whether a shared dashboard or packet page was opened. The dashboard is public, so this is acceptable for the MVP.
+
+Implementation: `index.html` includes the Google tag, and `scripts/validate-case` fails if it is removed.

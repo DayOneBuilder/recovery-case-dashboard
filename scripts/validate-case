@@ -7,6 +7,7 @@ const vm = require("vm");
 
 const repoRoot = path.resolve(__dirname, "..");
 const registryPath = path.join(repoRoot, "config", "cases.json");
+const analyticsId = "G-ZR415HX0B2";
 
 function fail(message) {
   console.error(`validate-case: ${message}`);
@@ -78,6 +79,10 @@ function validateCase(caseId, caseConfig) {
   const authorityIds = new Set(
     asArray(data.authorities).map((authority) => authority.id),
   );
+  const opportunityIds = new Set(
+    asArray(data.recoveryOpportunities).map((opportunity) => opportunity.id),
+  );
+  const contactIds = new Set(asArray(data.contacts).map((contact) => contact.id));
 
   for (const opportunity of asArray(data.recoveryOpportunities)) {
     if (!opportunity.id) fail(`${caseId}: recovery opportunity missing id`);
@@ -105,6 +110,61 @@ function validateCase(caseId, caseConfig) {
       opportunity.evidenceRefs,
       sourceIds,
     );
+  }
+
+  for (const contact of asArray(data.contacts)) {
+    if (!contact.id) fail(`${caseId}: contact missing id`);
+    if (!contact.channel)
+      fail(`${caseId}: contact '${contact.id}' missing channel`);
+    if (!contact.permittedUse)
+      fail(`${caseId}: contact '${contact.id}' missing permittedUse`);
+    if (!contact.notFor)
+      fail(`${caseId}: contact '${contact.id}' missing notFor boundary`);
+    for (const ref of asArray(contact.relatedOpportunityRefs)) {
+      if (!opportunityIds.has(ref))
+        fail(
+          `${caseId}: contact '${contact.id}' references missing opportunity '${ref}'`,
+        );
+    }
+    checkRefs("contact", contact.id, contact.sourceRefs, sourceIds);
+  }
+
+  for (const outreach of asArray(data.outreachQueue)) {
+    if (!outreach.id) fail(`${caseId}: outreach item missing id`);
+    if (!opportunityIds.has(outreach.opportunityRef)) {
+      fail(
+        `${caseId}: outreach '${outreach.id}' references missing opportunity '${outreach.opportunityRef}'`,
+      );
+    }
+    if (!contactIds.has(outreach.contactRef)) {
+      fail(
+        `${caseId}: outreach '${outreach.id}' references missing contact '${outreach.contactRef}'`,
+      );
+    }
+    if (!packetIds.has(outreach.packetRef)) {
+      fail(
+        `${caseId}: outreach '${outreach.id}' references missing packet '${outreach.packetRef}'`,
+      );
+    }
+    if (!outreach.sendCondition)
+      fail(`${caseId}: outreach '${outreach.id}' missing sendCondition`);
+    if (!outreach.rewardProtection)
+      fail(`${caseId}: outreach '${outreach.id}' missing rewardProtection`);
+    if (outreach.latestDraft) {
+      if (
+        typeof outreach.latestDraft !== "string" ||
+        outreach.latestDraft.includes("://") ||
+        outreach.latestDraft.startsWith("/") ||
+        outreach.latestDraft.includes("..")
+      ) {
+        fail(`${caseId}: outreach '${outreach.id}' has unsafe latestDraft`);
+      } else if (!fs.existsSync(path.join(repoRoot, outreach.latestDraft))) {
+        fail(
+          `${caseId}: outreach '${outreach.id}' draft does not exist: ${outreach.latestDraft}`,
+        );
+      }
+    }
+    checkRefs("outreach", outreach.id, outreach.evidenceRefs, sourceIds);
   }
 
   for (const authority of asArray(data.authorities)) {
@@ -156,6 +216,10 @@ function validateCase(caseId, caseConfig) {
 
   if (asArray(data.recoveryOpportunities).length === 0)
     fail(`${caseId}: no recovery opportunities defined`);
+  if (asArray(data.contacts).length === 0)
+    fail(`${caseId}: no contacts defined`);
+  if (asArray(data.outreachQueue).length === 0)
+    fail(`${caseId}: no outreach queue defined`);
   if (asArray(data.recoveryPackets).length === 0)
     fail(`${caseId}: no recovery packets defined`);
   if (asArray(data.authorities).length === 0)
@@ -163,6 +227,16 @@ function validateCase(caseId, caseConfig) {
 }
 
 const registry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
+for (const htmlFile of ["index.html", "packet.html"]) {
+  const html = fs.readFileSync(path.join(repoRoot, htmlFile), "utf8");
+  if (
+    !html.includes(`gtag/js?id=${analyticsId}`) ||
+    !html.includes(`gtag("config", "${analyticsId}")`)
+  ) {
+    fail(`${htmlFile} is missing Google Analytics tag ${analyticsId}`);
+  }
+}
+
 const requestedId = process.argv[2] || registry.defaultCaseId;
 const cases = asArray(registry.cases);
 const selected = cases.filter(

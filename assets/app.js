@@ -14,6 +14,15 @@
   const sourceById = new Map(
     (caseData.sources || []).map((source) => [source.id, source]),
   );
+  const opportunityById = new Map(
+    (caseData.recoveryOpportunities || []).map((item) => [item.id, item]),
+  );
+  const contactById = new Map(
+    (caseData.contacts || []).map((item) => [item.id, item]),
+  );
+  const packetById = new Map(
+    (caseData.recoveryPackets || []).map((item) => [item.id, item]),
+  );
 
   const statusColors = {
     confirmed: "#143d33",
@@ -113,6 +122,12 @@
     return typeof value === "number" ? `${Math.round(value)}%` : "-";
   }
 
+  function humanizeStatus(value) {
+    return String(value || "-")
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
   function scoreWidth(value) {
     if (typeof value !== "number") return 0;
     return Math.max(0, Math.min(100, Math.round(value)));
@@ -135,6 +150,11 @@
     )
       return "";
     return value;
+  }
+
+  function packetPage(url) {
+    const path = localPath(url);
+    return path ? `packet.html?file=${encodeURIComponent(path)}` : "";
   }
 
   function sourceLinks(refs = [], limit = 4) {
@@ -241,6 +261,51 @@
       .join("");
   }
 
+  function renderCommandCenter() {
+    const command = caseData.recoveryCommand || {};
+    byId("command-center").innerHTML = `
+      <article class="command-hero">
+        <div>
+          <span>${escapeHtml(command.mode || "Manual outreach")}</span>
+          <h3>${escapeHtml(command.currentSignal || "No current signal")}</h3>
+          <p>${escapeHtml(command.currentRecommendation || "")}</p>
+        </div>
+        <div class="command-score">
+          <span>Confidence</span>
+          <strong>${escapeHtml(confidenceText(command.confidence))}</strong>
+          <small>${escapeHtml(command.externalAutoSend === false ? "No external auto-send" : "Check send policy")}</small>
+        </div>
+      </article>
+      <div class="command-copy">
+        <div>
+          <span>Why</span>
+          <p>${escapeHtml(command.rationale || "")}</p>
+        </div>
+        <div>
+          <span>Reward posture</span>
+          <p>${escapeHtml(command.rewardPosition || "")}</p>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderAlertRules() {
+    const rules = caseData.recoveryCommand?.escalationRules || [];
+    byId("alert-rules").innerHTML = rules
+      .map(
+        (rule) => `
+          <article class="alert-rule-card">
+            <strong>${escapeHtml(rule.label)}</strong>
+            <dl class="compact-details">
+              <div><dt>Fires when</dt><dd>${escapeHtml(rule.firesWhen)}</dd></div>
+              <div><dt>Action</dt><dd>${escapeHtml(rule.action)}</dd></div>
+            </dl>
+          </article>
+        `,
+      )
+      .join("");
+  }
+
   function renderRecoveryOpportunities() {
     byId("recovery-opportunities").innerHTML = (
       caseData.recoveryOpportunities || []
@@ -303,6 +368,85 @@
       .join("");
   }
 
+  function renderContacts() {
+    byId("contacts").innerHTML = (caseData.contacts || [])
+      .map((item) => {
+        const color = statusColor(item.statusKey);
+        return `
+          <article class="contact-card">
+            <div class="authority-head">
+              <div>
+                <strong>${escapeHtml(item.name)}</strong>
+                <span>${escapeHtml(item.organization)} · ${escapeHtml(item.role)}</span>
+              </div>
+              <span class="status-pill compact" style="background:${color}">${escapeHtml(item.status)}</span>
+            </div>
+            <dl class="compact-details">
+              <div><dt>Channel</dt><dd>${escapeHtml(item.channel)}</dd></div>
+              <div><dt>Use for</dt><dd>${escapeHtml(item.permittedUse)}</dd></div>
+              <div><dt>Do not use for</dt><dd>${escapeHtml(item.notFor)}</dd></div>
+              <div><dt>Next ask</dt><dd>${escapeHtml(item.nextAsk)}</dd></div>
+            </dl>
+            <div class="contact-confidence">
+              <span>Route confidence</span>
+              <strong>${escapeHtml(confidenceText(item.confidence))}</strong>
+            </div>
+            ${sourceLinks(item.sourceRefs, 3)}
+          </article>
+        `;
+      })
+      .join("");
+  }
+
+  function renderOutreachQueue() {
+    byId("outreach-queue").innerHTML = (caseData.outreachQueue || [])
+      .map((item) => {
+        const opportunity = opportunityById.get(item.opportunityRef) || {};
+        const contact = contactById.get(item.contactRef) || {};
+        const packet = packetById.get(item.packetRef) || {};
+        const contactColor = statusColor(contact.statusKey || "unknown");
+        return `
+          <article class="outreach-card">
+            <div class="outreach-top">
+              <div class="outreach-title">
+                <span>#${escapeHtml(item.priority)} · ${escapeHtml(humanizeStatus(item.status))}</span>
+                <h3>${escapeHtml(item.title)}</h3>
+              </div>
+              <div class="outreach-recipient" style="--recipient-color:${contactColor}">
+                <span>Recipient route</span>
+                <strong>${escapeHtml(contact.organization || contact.name || "-")}</strong>
+              </div>
+            </div>
+            <div class="outreach-grid">
+              <div><span>Value at stake</span><p>${escapeHtml(item.valueAtStake)}</p></div>
+              <div><span>Opportunity</span><p>${escapeHtml(opportunity.title || item.opportunityRef)}</p></div>
+              <div><span>Packet</span><p>${escapeHtml(packet.title || item.packetRef)}</p></div>
+              <div><span>Next follow-up</span><p>${escapeHtml(item.nextFollowUp)}</p></div>
+            </div>
+            <dl class="opportunity-details outreach-details">
+              <div><dt>Why contact now</dt><dd>${escapeHtml(item.whyContactNow)}</dd></div>
+              <div><dt>Send condition</dt><dd>${escapeHtml(item.sendCondition)}</dd></div>
+              <div><dt>Reward protection</dt><dd>${escapeHtml(item.rewardProtection)}</dd></div>
+            </dl>
+            <div class="outreach-links">
+            ${
+              packetPage(item.latestDraft)
+                ? `<a class="packet-link" href="${escapeHtml(packetPage(item.latestDraft))}">Open outreach draft</a>`
+                  : ""
+            }
+            ${
+                packetPage(packet.packetFile)
+                  ? `<a class="packet-link" href="${escapeHtml(packetPage(packet.packetFile))}">Open evidence packet</a>`
+                  : ""
+            }
+            </div>
+            ${sourceLinks(item.evidenceRefs, 3)}
+          </article>
+        `;
+      })
+      .join("");
+  }
+
   function renderRecoveryPackets() {
     byId("recovery-packets").innerHTML = (caseData.recoveryPackets || [])
       .map((item) => {
@@ -332,8 +476,8 @@
               <p>${escapeHtml(item.nextStep)}</p>
             </div>
             ${
-              localPath(item.packetFile)
-                ? `<a class="packet-link" href="${escapeHtml(localPath(item.packetFile))}">Open packet draft</a>`
+              packetPage(item.packetFile)
+                ? `<a class="packet-link" href="${escapeHtml(packetPage(item.packetFile))}">Open packet draft</a>`
                 : ""
             }
             ${sourceLinks(item.evidenceRefs, 3)}
@@ -694,9 +838,13 @@
     initHeader();
     renderExploitBrief();
     renderTopSummary();
+    renderCommandCenter();
     renderRecoveryOpportunities();
+    renderOutreachQueue();
     renderAuthorities();
+    renderContacts();
     renderRecoveryPackets();
+    renderAlertRules();
     renderPriorityActions();
     renderFundLocations();
     renderLegend();

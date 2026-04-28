@@ -6,6 +6,8 @@ The first case is `IoTeX ioTube`. The dashboard is intentionally static: analysi
 
 The product goal is not to redraw public traces. The goal is to surface missed or underworked recovery actions: live balances, freeze-capable authorities, venue handoffs, issuer controls, victim-side asks, and evidence packets that can be sent to someone with power to act.
 
+The operating model is human-approved outreach. The system may identify a lead, prepare a packet, and draft a message, but it does not send external emails automatically.
+
 ## Product Direction
 
 The v2 dashboard is oriented around the four questions a recovery stakeholder asks first:
@@ -23,6 +25,9 @@ Charts remain useful, but they are no longer the primary interface. The top of t
 - Exploit/theft brief with the stolen assets and claim boundaries
 - Top summary buckets for stolen total, visible on-chain value, constrained value, venue-dependent value, and best lead
 - Ranked recovery opportunities with score, action, blocker, and why the lead may have been missed
+- Recovery command center that says whether the current case should interrupt the user, ask a clarifying question, or stay watch-only
+- Outreach queue with send conditions, follow-up dates, reward-position language, and links to generated drafts
+- Contact routes with permitted use, route confidence, and explicit "do not use for" boundaries
 - Authorities that can freeze, preserve, identify, or officially escalate a branch
 - Evidence packets that convert research into a concrete ask
 - Priority actions with owner, target, and reason
@@ -43,7 +48,10 @@ Charts remain useful, but they are no longer the primary interface. The top of t
 - `exploit`: theft summary, vector, stolen total, and `whatWasStolen` rows.
 - `topSummary`: five product buckets shown near the top of the page.
 - `priorityActions`: ordered actions with owner, target, and rationale.
+- `recoveryCommand`: current user-facing decision, manual-send policy, reward posture, and alert rules.
 - `recoveryOpportunities`: ranked hooks scored by live value, authority, evidence strength, novelty, urgency, and blockers.
+- `contacts`: official or authority-gated contact routes, including permitted use and claim boundaries.
+- `outreachQueue`: human-approved messages to draft, send, and follow up.
 - `authorities`: parties with power to act, plus what they need and what public data cannot prove.
 - `recoveryPackets`: packet definitions that turn evidence into venue, issuer, victim, or analytics-vendor asks.
 - `fundLocations`: the scannable current-location table. Each row carries `classification`, `confidence`, and `evidenceRefs`.
@@ -60,11 +68,15 @@ Recovery opportunities are stricter than leads. A lead becomes an opportunity on
 ```text
 .
 ├── index.html
+├── packet.html
 ├── assets/
 │   ├── app.js
+│   ├── packet.js
 │   └── styles.css
 ├── config/
 │   └── cases.json
+├── contacts/
+│   └── iotex-iotube.md
 ├── data/
 │   └── iotex-iotube.js
 ├── docs/
@@ -75,8 +87,19 @@ Recovery opportunities are stricter than leads. A lead becomes an opportunity on
 │   ├── iotex-btc-service-lead.md
 │   ├── iotex-btc-tail-watch.md
 │   └── iotex-ciotx-venues.md
+├── opportunities/
+│   └── iotex-iotube.md
+├── outreach/
+│   ├── drafts/
+│   │   ├── iotex-iotube-btc-service-attribution-question.md
+│   │   └── iotex-iotube-ciotx-iotex-status-request.md
+│   ├── templates/
+│   │   └── recovery-lead-email.md
+│   └── iotex-iotube.md
 └── scripts/
     ├── case-refresh
+    ├── generate-outreach
+    ├── refresh-case
     └── validate-case
 ```
 
@@ -100,6 +123,7 @@ http://localhost:4173/
 scripts/case-refresh
 scripts/case-refresh iotex-iotube
 scripts/case-refresh --list
+scripts/refresh-case iotex-iotube
 ```
 
 The command reads `config/cases.json`, looks up the case id, and tries to queue the matching cron job by exact name from `openclaw cron list --json`.
@@ -130,7 +154,21 @@ Run the local case validator before committing:
 scripts/validate-case
 ```
 
-The validator rejects broken dates, missing source references, missing recovery hooks, and unbounded churn-only BTC service tx sources.
+The validator rejects broken dates, missing source references, missing recovery hooks, broken outreach/contact/packet links, missing outreach drafts, missing Google Analytics, and unbounded churn-only BTC service tx sources.
+
+## Outreach Draft Generation
+
+Use `scripts/generate-outreach` to generate human-approved email drafts from the structured case data. The command never sends email.
+
+```bash
+scripts/generate-outreach --list
+scripts/generate-outreach ciotx-iotex-status-request --force
+scripts/generate-outreach iotex-iotube ciotx-iotex-status-request --stdout
+```
+
+Generated drafts live in `outreach/drafts/`. Before sending, re-check the evidence packet, current balances, recipient route, and wording.
+
+Evidence packets are linked through `packet.html?file=...` instead of raw markdown so public packet opens are covered by the same Google Analytics tag as the dashboard.
 
 ## Data Safety
 
