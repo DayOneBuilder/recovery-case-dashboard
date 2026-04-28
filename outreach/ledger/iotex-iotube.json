@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0",
+  "caseId": "iotex-iotube",
+  "items": [
+    {
+      "outreachId": "ciotx-iotex-status-request",
+      "status": "sent_manual",
+      "sentAt": "2026-04-28",
+      "sentBy": "Ben Ison",
+      "recipient": "IoTeX team via official contact route",
+      "subject": "Unknown; user-reported sent email",
+      "dashboardUrl": "https://dayonebuilder.online/recovery-case-dashboard/?v=846c386",
+      "packetUrl": "https://dayonebuilder.online/recovery-case-dashboard/packets/iotex-ciotx-venues.md?v=846c386",
+      "notes": [
+        "User reported sending a value-first routing/status question about the CIOTX branch.",
+        "Message asked whether the branch is already frozen, preserved, settled, or otherwise handled.",
+        "Message asked for the correct security/recovery contact or disclosure process and any bounty/researcher reward guidance."
+      ],
+      "nextAction": "Track replies from IoTeX and update the case if they confirm closed, actionable, or redirected status."
+    }
+  ]
+}
