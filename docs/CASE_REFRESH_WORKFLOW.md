@@ -7,7 +7,7 @@ Use this workflow when refreshing an existing recovery case. The goal is to vali
 - Case id from `config/cases.json`.
 - Current case data file, for example `data/iotex-iotube.js`.
 - Existing dashboard facts: stolen assets, fund locations, classifications, priority actions, workstreams, timeline, notes, and sources.
-- Recovery-hook facts: `recoveryCommand`, `recoveryOpportunities`, `contacts`, `outreachQueue`, `authorities`, `recoveryPackets`, and `outreach/ledger/`.
+- Recovery-hook facts: `recoveryCommand`, `recoveryOpportunities`, `contacts`, `outreachQueue`, `authorities`, `recoveryPackets`, `outreach/ledger/`, and the recovery autoresearch factory policy in `docs/RECOVERY_AUTORESEARCH_FACTORY_SPEC.md`.
 - Current public sources and explorer views needed to validate the existing claims.
 
 ## Refresh Rules
@@ -69,7 +69,7 @@ Commit only when the change can affect recovery work:
 8. If a new outreach draft is needed, generate the approval text with `scripts/generate-approval-request <case-id> <outreach-id> --write`. Do not send the underlying email. Include the full generated approval text in the returned Slack summary so the operator sees the exact approve/reject commands and tracked dashboard/packet/draft links.
 9. If a reply arrived, record it with `scripts/record-outreach-reply` and classify it as one of: `replied`, `needs_more_evidence`, `already_handled`, `actionable`, `rejected`, `bounty_discussion`, or `wrong_route`. Pass the mailbox candidate `messageId` as `--message-id` so repeated read-only scans are idempotent. Do not answer the reply automatically.
 10. If the reply contains substantive public-safe information, update dashboard/outreachQueue/opportunities immediately with only that information. Do not publish raw private email text.
-11. Run bounded new-case intake using `docs/NEW_CASE_PIPELINE.md`. Do not do broad public research every 3 hours. Use local markdown discovery first, verify at most one high-scoring candidate when an active slot exists, and report only candidates that meet active-development thresholds or should displace the weakest active case.
+11. Run bounded new-case intake using `docs/NEW_CASE_PIPELINE.md` and `docs/RECOVERY_AUTORESEARCH_FACTORY_SPEC.md`. Do not do broad public research every 3 hours. Use local markdown discovery first, spend expensive verification only when a credible reward route exists or a cheap reward-route probe can validate one, and report only qualified reward opportunities.
 12. Set `case.lastReview` to the refresh date only when a material case-data update was made. Adjust `case.nextReview` only if the review cadence changed.
 13. Run `scripts/validate-case` and verify the static page renders after the data update.
 14. Produce a concise refresh summary with:
@@ -85,7 +85,7 @@ For scheduled OpenClaw isolated cron jobs, return a plain-text summary only when
 
 If the refresh creates or updates an outreach approval request, append an `Approval needed:` section to the plain-text summary and include the full generated approval text. A short bullet saying "approval generated" is not enough, because the cron runner only delivers the final agent response.
 
-If the refresh finds no operator-actionable event, return exactly `NO_REPLY` and nothing else. Do not send Slack-visible "checked, unchanged" reports. Operator-actionable events are: a reply candidate arrived; an outreach approval request is needed; a material data change created a new or changed recovery action; a high-confidence new recovery case or reward route meets active-development thresholds; an existing active case should be demoted or parked; or a blocker/error requires human intervention.
+If the refresh finds no operator-actionable event, return exactly `NO_REPLY` and nothing else. Do not send Slack-visible "checked, unchanged" reports. Operator-actionable events are: a reply candidate arrived; an outreach approval request is needed; a material data change created a new or changed recovery action; a qualified reward opportunity is found; a written commitment/payment event arrives; or a blocker/error requires human intervention.
 
 ## Non-Goals
 
