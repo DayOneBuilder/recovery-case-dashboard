@@ -7,7 +7,7 @@ window.RECOVERY_CASE = {
       "Product view of the ioTube bridge incident: what was stolen, where funds are now, what is confirmed, what is only a lead, and what to do next.",
     victim: "IoTeX ioTube bridge",
     incidentDate: "2026-02-21",
-    lastReview: "2026-04-28",
+    lastReview: "2026-04-29",
     nextReview: "2026-04-29",
     publicMode: true,
     publicUrl: "https://dayonebuilder.online/recovery-case-dashboard/",
@@ -44,10 +44,10 @@ window.RECOVERY_CASE = {
       {
         id: "ciotx-mint-branch",
         asset: "CIOTX",
-        amount: "128.8M+ CIOTX branch",
+        amount: "410M+ CIOTX unauthorized mint branch",
         classification: "confirmed-stolen-path",
         confidence: 88,
-        note: "Public recovery updates identify visible and venue-dependent CIOTX branches.",
+        note: "IoTeX Update No.3 says most of the CIOTX branch is now under control: >86% permanently frozen on-chain, 12.8% traced/frozen via Binance, and only 0.4% (~1.7M CIOTX) still at risk after DEX swaps.",
       },
     ],
   },
@@ -73,28 +73,28 @@ window.RECOVERY_CASE = {
     {
       id: "constrained-frozen-value",
       label: "Constrained / frozen value",
-      value: "76.4M CIOTX",
+      value: "76.4M CIOTX (plus Binance-traced branch reported frozen)",
       status: "constrained",
-      confidence: 95,
+      confidence: 96,
       caption:
-        "Visible on 0xA467; recovery depends on IoTeX and exchange controls.",
+        "Public Update No.3 reports CIOTX controls are largely effective; 1.7M CIOTX is the remaining public-at-risk slice.",
     },
     {
       id: "venue-dependent-value",
       label: "Off-chain / venue-dependent",
-      value: "52.4M CIOTX",
+      value: "1.7M CIOTX",
       status: "offchain",
-      confidence: 82,
-      caption: "IoTeX-reported branch involving Binance and trading partners.",
+      confidence: 88,
+      caption: "IoTeX Update No.3 narrows active public exposure on the CIOTX branch to ~0.4% (~1.7M CIOTX).",
     },
     {
       id: "best-investigative-lead",
       label: "Best recovery hook",
-      value: "CIOTX authority packet",
+      value: "CIOTX control-confirmation watch",
       status: "constrained",
-      confidence: 82,
+      confidence: 84,
       caption:
-        "Visible CIOTX plus named venue branch can be worked by IoTeX, counsel, and venues.",
+        "Most CIOTX is now reported as frozen/locked; monitor only the residual public-at-risk path and update on new movement.",
     },
   ],
   priorityActions: [
@@ -1146,6 +1146,13 @@ window.RECOVERY_CASE = {
       status: "constrained",
       classification: "context",
     },
+    {
+      date: "2026-04-29",
+      title: "IoTeX Update No.3",
+      text: "IoTeX reports 410M unauthorized CIOTX minted; >86% permanently frozen on-chain, 12.8% traced/frozen via Binance, and ~1.7M CIOTX (0.4%) still at-risk after DEX swaps.",
+      status: "constrained",
+      classification: "confirmed-stolen-path",
+    },
   ],
   notes: [
     {
@@ -1184,6 +1191,11 @@ window.RECOVERY_CASE = {
       id: "iotex-update-2",
       label: "IoTeX update No.2",
       url: "https://blog.iotex.io/id/blog/iotube-bridge-incident-update-no-2-chain-resumed-recovery-underway/",
+    },
+    {
+      id: "iotex-update-3",
+      label: "IoTeX update No.3",
+      url: "https://blog.iotex.io/blog/iotube-security-incident-update-no-3-full-recovery-compensation-plan/",
     },
     {
       id: "iotex-terms-contact",
