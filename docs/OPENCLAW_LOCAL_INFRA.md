@@ -35,7 +35,7 @@ openclaw cron add \
   --to "channel:C0APHKX5LVA"
 ```
 
-The current `scripts/case-refresh` fallback starts a direct agent and writes a log. It does not send Slack unless run with `--notify`, because this project requires explicit approval before outward delivery.
+The current `scripts/case-refresh` fallback starts a direct agent and writes a log. It does not send Slack unless run with `--notify`, because this project requires explicit approval before outward delivery. Scheduled cron runs are silent on routine no-change checks: the agent returns `NO_REPLY` unless there is an operator-actionable event such as a reply, approval request, material recovery delta, high-confidence new recovery case, or blocker.
 
 ## Mail Access
 

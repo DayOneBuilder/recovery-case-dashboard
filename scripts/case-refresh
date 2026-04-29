@@ -189,7 +189,7 @@ def build_refresh_prompt(case_id: str, case: dict[str, Any], *, allow_direct_not
         "- After sending the Slack message, return exactly NO_REPLY.\n"
         if allow_direct_notify
         else
-        "- Direct fallback Slack send is NOT approved for this run. Do not call Slack or the message tool. Return the concise update as plain text; the operator can copy or rerun with --notify.\n"
+        "- Direct fallback Slack send is NOT approved for this run. Do not call Slack or the message tool. Return plain text only when the operator needs to see or decide something; otherwise return exactly NO_REPLY.\n"
     )
 
     return (
@@ -225,6 +225,8 @@ def build_refresh_prompt(case_id: str, case: dict[str, Any], *, allow_direct_not
         "- Prioritize recovery hooks over trace volume: update recoveryCommand, recoveryOpportunities, contacts, outreachQueue, authorities, or recoveryPackets only when the action path changes.\n"
         "- If an outreach item changes, regenerate its draft with scripts/generate-outreach <outreach-id> --force.\n"
         "- Never send external outreach, follow-ups, venue reports, or email replies automatically. Prepare drafts and report what needs user approval.\n"
+        "- Do not report routine no-change checks to Slack. If there is no operator-actionable event after the checks, return exactly NO_REPLY and nothing else.\n"
+        "- Operator-actionable events are: a reply candidate arrived; an outreach approval request is needed; a material data change created a new or changed recovery action; a high-confidence new recovery case/reward route is found; or a blocker/error requires human intervention.\n"
         "- If a reply arrived, do not answer it. Save a summary in outreach/ledger, classify it, update dashboard fields only if actionability changed, and propose the next step.\n"
         "- When recording a mailbox reply, pass the candidate messageId from scripts/check-recovery-mailbox as --message-id so repeated read-only scans do not duplicate ledger entries.\n"
         "- Reply classifications must be one of: replied, needs_more_evidence, already_handled, actionable, rejected, bounty_discussion, wrong_route.\n"
@@ -235,11 +237,12 @@ def build_refresh_prompt(case_id: str, case: dict[str, Any], *, allow_direct_not
         "- After edits, run scripts/validate-case and a lightweight sanity check so the case JS still parses and exposes window.RECOVERY_CASE.\n"
         f"- If repo files changed, run git status and commit with: Refresh case state: {case_id}. Do not push unless the operator explicitly approved pushing in this run.\n"
         f"{direct_delivery_rules}"
-        "- Slack update format:\n"
-        f"  1) first line exactly one of: Проверил {case_id}, изменений нет. OR Обновил {case_id}.\n"
-        "  2) then 2-5 short bullets with the exact deltas or exact re-validation points\n"
+        "- Slack-visible update format, only for operator-actionable events:\n"
+        f"  1) first line exactly one of: Обновил {case_id}. OR Нужен approve: {case_id}. OR Получен ответ: {case_id}. OR Найден recovery case.\n"
+        "  2) then 2-5 short bullets with only the exact action-relevant deltas, decision needed, or blocker\n"
         "  3) if a commit was created, include the short hash in the message\n"
         "  4) if an approval request is needed, append an `Approval needed:` section containing the generated approval text, including approve/reject commands\n"
+        "  5) never send a Slack-visible message whose only content is that balances, mailbox, or ledger were checked and unchanged\n"
     )
 
 

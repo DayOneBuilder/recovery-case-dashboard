@@ -80,11 +80,11 @@ Commit only when the change can affect recovery work:
 
 ## Delivery
 
-For scheduled OpenClaw isolated cron jobs, return the refresh summary as plain text and let the cron runner deliver it via `announce`. Do not call Slack or the generic message tool from inside the scheduled cron agent turn. Direct Slack sending from the manual fallback path is disabled unless the operator runs `scripts/case-refresh --notify`.
+For scheduled OpenClaw isolated cron jobs, return a plain-text summary only when the operator needs to see or decide something. Do not call Slack or the generic message tool from inside the scheduled cron agent turn. Direct Slack sending from the manual fallback path is disabled unless the operator runs `scripts/case-refresh --notify`.
 
 If the refresh creates or updates an outreach approval request, append an `Approval needed:` section to the plain-text summary and include the full generated approval text. A short bullet saying "approval generated" is not enough, because the cron runner only delivers the final agent response.
 
-The scheduled agent must always return a visible summary, even when nothing changed. Do not return `NO_REPLY` from scheduled cron runs because `NO_REPLY` is treated as silent delivery.
+If the refresh finds no operator-actionable event, return exactly `NO_REPLY` and nothing else. Do not send Slack-visible "checked, unchanged" reports. Operator-actionable events are: a reply candidate arrived; an outreach approval request is needed; a material data change created a new or changed recovery action; a high-confidence new recovery case or reward route is found; or a blocker/error requires human intervention.
 
 ## Non-Goals
 
