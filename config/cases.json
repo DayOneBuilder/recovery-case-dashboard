@@ -10,7 +10,10 @@
       "cronJobName": "Recovery case refresh: iotex-iotube",
       "notifyChannel": "slack",
       "notifyTarget": "C0APHKX5LVA",
-      "notifyThreadId": ""
+      "notifyThreadId": "",
+      "monitoringPaused": true,
+      "pausedAt": "2026-04-29",
+      "pausedReason": "User requested a freeze on recovery monitoring and payout-search activity; OpenClaw cron is disabled."
     }
   ]
 }

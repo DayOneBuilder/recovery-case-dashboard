@@ -2,6 +2,8 @@
 
 Use this workflow when refreshing an existing recovery case. The goal is to validate the current known state and add only deltas when something changed. Do not perform a full re-research pass unless the case data is missing, internally inconsistent, or explicitly marked for rebuild.
 
+Current operator state: recovery monitoring is paused. Do not run scheduled or manual refresh loops unless the operator explicitly requests a one-off override.
+
 ## Inputs
 
 - Case id from `config/cases.json`.

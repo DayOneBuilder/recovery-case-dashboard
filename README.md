@@ -117,11 +117,14 @@ http://localhost:4173/
 
 ## Case Refresh Command
 
+Recovery monitoring is currently paused by operator request. The 3-hour OpenClaw job is disabled, and `config/cases.json` sets `monitoringPaused: true` for `iotex-iotube`. A normal `scripts/case-refresh` run exits without starting OpenClaw, Slack, or email. Use `--force` only for an explicit one-off manual override.
+
 `scripts/case-refresh` queues the configured OpenClaw cron job for an incremental case refresh. It defaults to `iotex-iotube`.
 
 ```bash
 scripts/case-refresh
 scripts/case-refresh iotex-iotube
+scripts/case-refresh iotex-iotube --force
 scripts/case-refresh --list
 scripts/refresh-case iotex-iotube
 ```

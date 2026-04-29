@@ -1,6 +1,6 @@
 # Local OpenClaw / Mail Infrastructure
 
-Checked on 2026-04-28 UTC after cloning the project onto this machine.
+Checked on 2026-04-29 UTC after freezing recovery monitoring on this machine.
 
 ## Current State
 
@@ -13,12 +13,17 @@ Checked on 2026-04-28 UTC after cloning the project onto this machine.
 - Project registry notification target: `C0APHKX5LVA` (`#autobuilder`), no thread.
 - Slack bot `molt3` is a member of `#autobuilder`.
 - OpenClaw cron store: `~/.openclaw/cron/jobs.json`.
-- Current recovery cron job: `Recovery case refresh: iotex-iotube`, id `5b336c8e-73b6-42af-af68-49929b375fb3`, every 3 hours, model `openai-codex/gpt-5.3-codex-spark`, delivery `slack channel:C0APHKX5LVA`.
+- Recovery monitoring is paused by operator request. The OpenClaw cron job `Recovery case refresh: iotex-iotube`, id `5b336c8e-73b6-42af-af68-49929b375fb3`, is disabled and has no active next run.
+- The disabled job was configured for every 3 hours, model `openai-codex/gpt-5.3-codex-spark`, delivery `slack channel:C0APHKX5LVA`.
 - Gateway logs: `journalctl --user -u openclaw-gateway.service`.
 - OpenClaw local logs: `~/.openclaw/logs/`.
 - Direct-agent fallback logs from this repo: `/tmp/case-refresh/<case>-<timestamp>.log`.
 
 ## Slack Delivery
+
+Recovery Slack delivery is currently frozen. The repo registry sets `monitoringPaused: true`, so `scripts/case-refresh iotex-iotube` exits without queuing OpenClaw, starting a fallback agent, sending Slack, or sending email unless an operator uses `--force` for a one-off manual override.
+
+Historical install command, kept only for reactivation reference:
 
 Scheduled recovery refreshes should be installed as OpenClaw isolated cron jobs with cron-owned `announce` delivery:
 
@@ -51,7 +56,8 @@ The mailbox auth probe in `~/.openclaw/workspace/assets/dayonebuilder-mail-auth-
 
 ## Recovery Project Implications
 
-- The expected 3-hour OpenClaw cron job is installed on this machine as `5b336c8e-73b6-42af-af68-49929b375fb3`.
+- The expected 3-hour OpenClaw cron job exists on this machine as `5b336c8e-73b6-42af-af68-49929b375fb3`, but it is disabled.
+- `config/cases.json` marks `iotex-iotube` as `monitoringPaused: true`; manual refresh commands will refuse to start monitoring without `--force`.
 - `scripts/generate-outreach` only writes drafts. It does not send email.
 - `scripts/generate-approval-request` creates the operator approval message.
 - `scripts/record-outreach-reply` records replies in `outreach/ledger/` and never sends a response.

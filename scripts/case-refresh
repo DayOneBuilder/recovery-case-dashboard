@@ -26,10 +26,11 @@ def fail(message: str, exit_code: int = 1) -> None:
 
 def usage() -> str:
     return (
-        "Usage: scripts/case-refresh [case-id] [--notify]\n"
+        "Usage: scripts/case-refresh [case-id] [--notify] [--force]\n"
         "       scripts/case-refresh --list\n"
-        "       scripts/case-refresh --print-cron-message [case-id]\n"
+        "       scripts/case-refresh --print-cron-message [case-id] [--force]\n"
         "\n"
+        "--force bypasses a registry monitoringPaused guard for an explicit manual run.\n"
         "--notify allows the direct-agent fallback to send the configured Slack update.\n"
         "Scheduled OpenClaw cron delivery should use cron announce instead.\n"
         "\n"
@@ -77,7 +78,26 @@ def print_cases(cases: dict[str, dict[str, Any]]) -> None:
     for case_id in sorted(cases):
         case = cases[case_id]
         title = case.get("title", case_id)
-        print(f"- {case_id}: {title} -> {case['cronJobName']}")
+        status = "paused" if is_monitoring_paused(case) else "active"
+        print(f"- {case_id}: {title} [{status}] -> {case['cronJobName']}")
+
+
+def is_monitoring_paused(case: dict[str, Any]) -> bool:
+    return case.get("monitoringPaused") is True
+
+
+def print_pause_message(case_id: str, case: dict[str, Any]) -> None:
+    title = case.get("title", case_id)
+    paused_at = optional_case_string(case, "pausedAt")
+    paused_reason = optional_case_string(case, "pausedReason")
+
+    print(f"Monitoring is paused for case '{case_id}' ({title}).")
+    if paused_at:
+        print(f"Paused at: {paused_at}")
+    if paused_reason:
+        print(f"Reason: {paused_reason}")
+    print("No OpenClaw cron run, direct-agent fallback, Slack message, or email was started.")
+    print("Use --force only for an explicit one-off manual override.")
 
 
 def require_case_string(case_id: str, case: dict[str, Any], field: str) -> str:
@@ -285,15 +305,18 @@ def launch_direct_agent_refresh(
     return process, log_path
 
 
-def parse_args(argv: list[str]) -> tuple[bool, str | None, bool, bool]:
+def parse_args(argv: list[str]) -> tuple[bool, str | None, bool, bool, bool]:
     allow_direct_notify = False
     should_print_cron_message = False
+    force_refresh = False
     filtered: list[str] = []
     for arg in argv:
         if arg == "--notify":
             allow_direct_notify = True
         elif arg == "--print-cron-message":
             should_print_cron_message = True
+        elif arg == "--force":
+            force_refresh = True
         else:
             filtered.append(arg)
 
@@ -307,15 +330,15 @@ def parse_args(argv: list[str]) -> tuple[bool, str | None, bool, bool]:
     if argv and argv[0] == "--list":
         if len(argv) > 1:
             fail("--list does not accept a case id", exit_code=2)
-        return True, None, allow_direct_notify, should_print_cron_message
+        return True, None, allow_direct_notify, should_print_cron_message, force_refresh
     if argv and argv[0].startswith("-"):
         fail(f"unknown option: {argv[0]}\n{usage()}", exit_code=2)
 
-    return False, argv[0] if argv else None, allow_direct_notify, should_print_cron_message
+    return False, argv[0] if argv else None, allow_direct_notify, should_print_cron_message, force_refresh
 
 
 def main(argv: list[str]) -> int:
-    should_list, requested_case_id, allow_direct_notify, should_print_cron_message = parse_args(argv)
+    should_list, requested_case_id, allow_direct_notify, should_print_cron_message, force_refresh = parse_args(argv)
     default_case_id, cases = load_registry()
 
     if should_list:
@@ -327,6 +350,10 @@ def main(argv: list[str]) -> int:
     if case is None:
         known = ", ".join(sorted(cases)) or "none"
         fail(f"unknown case id '{case_id}'. Known cases: {known}")
+
+    if is_monitoring_paused(case) and not force_refresh:
+        print_pause_message(case_id, case)
+        return 0
 
     if should_print_cron_message:
         print(build_refresh_prompt(case_id, case, allow_direct_notify=False))
