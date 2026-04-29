@@ -187,7 +187,7 @@ Use `scripts/discover-recovery-cases` to turn local `find_stolen_money/cases/*.m
 scripts/discover-recovery-cases --source-dir ../find_stolen_money/cases --markdown
 ```
 
-The command is read-only and does not browse or contact anyone. It extracts stolen amount, assets, chains, addresses, touchpoints, victim contacts, reward route hints, confidence, and reward probability. See `docs/NEW_CASE_PIPELINE.md`.
+The command is read-only and does not browse or contact anyone. It extracts stolen amount, assets, chains, addresses, touchpoints, victim contacts, reward route hints, confidence, and reward probability. New-case intake is capacity-gated: keep at most 3 active development cases, 1 pending approval draft, and 6 watch-only cases unless the user explicitly expands scope. See `docs/NEW_CASE_PIPELINE.md`.
 
 ## Data Safety
 
